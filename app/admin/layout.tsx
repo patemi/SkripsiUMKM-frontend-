@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { 
   FiHome, 
   FiShoppingBag, 
@@ -9,9 +10,9 @@ import {
   FiFileText, 
   FiTrendingUp,
   FiMenu,
-  FiX 
+  FiX,
+  FiLogOut
 } from 'react-icons/fi';
-import { useState } from 'react';
 
 const menuItems = [
   { href: '/admin', label: 'Dashboard', icon: FiHome },
@@ -27,7 +28,54 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [adminName, setAdminName] = useState('Admin User');
+
+  useEffect(() => {
+    // Check authentication
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      // Redirect to login if no token
+      router.push('/login');
+      return;
+    }
+
+    // Get admin info from localStorage
+    const adminData = localStorage.getItem('admin');
+    if (adminData) {
+      try {
+        const admin = JSON.parse(adminData);
+        setAdminName(admin.nama_admin || 'Admin User');
+      } catch (error) {
+        console.error('Error parsing admin data:', error);
+      }
+    }
+
+    setIsAuthenticated(true);
+    setIsLoading(false);
+  }, [router]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('admin');
+    router.push('/login');
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -76,10 +124,17 @@ export default function AdminLayout({
             })}
           </nav>
 
-          <div className="absolute bottom-4 left-0 right-0 px-7">
+          <div className="absolute bottom-4 left-0 right-0 px-7 space-y-3">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+            >
+              <FiLogOut className="mr-2" size={18} />
+              Logout
+            </button>
             <div className="p-4 bg-blue-50 rounded-lg">
               <p className="text-sm text-gray-600">Logged in as:</p>
-              <p className="font-semibold text-gray-800">Admin User</p>
+              <p className="font-semibold text-gray-800">{adminName}</p>
             </div>
           </div>
         </div>

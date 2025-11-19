@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "UMKM Admin Dashboard",
-  description: "Dashboard admin untuk manajemen UMKM",
+  title: "SoraUMKM - Platform UMKM Solo Raya",
+  description: "Platform terpercaya untuk menemukan dan mendukung UMKM di wilayah Solo Raya",
 };
 
 export default function RootLayout({
