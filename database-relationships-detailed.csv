@@ -1,0 +1,4 @@
+Parent Table,Parent Column,Child Table,Child Column,Relationship Type,Cardinality,Description,Mandatory,Delete Rule,Additional Notes
+users,_id,umkms,user_id,One-to-Many,1:N,Satu user dapat mendaftarkan banyak UMKM,No,CASCADE,"User adalah pemilik UMKM. Field ini null jika UMKM dibuat oleh admin. Minimal salah satu dari user_id atau admin_id harus terisi."
+admins,_id,umkms,admin_id,One-to-Many,1:N,Satu admin dapat membuat/mengelola banyak UMKM,No,SET NULL,"Admin dapat membuat UMKM langsung tanpa melalui user. Field ini null jika UMKM dibuat oleh user. Minimal salah satu dari user_id atau admin_id harus terisi."
+admins,_id,umkms,verified_by,One-to-Many,1:N,Satu admin dapat memverifikasi banyak UMKM,No,SET NULL,"Admin melakukan verifikasi UMKM. Field ini null untuk UMKM dengan status pending. Wajib diisi untuk status approved/rejected."

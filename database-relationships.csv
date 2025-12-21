@@ -1,0 +1,4 @@
+TableName,ColumnName,ReferencedTableName,ReferencedColumnName,RelationshipType,Description,IsMandatory,OnDelete
+umkms,user_id,users,_id,Many-to-One,UMKM dimiliki oleh User yang mendaftarkan,No,CASCADE
+umkms,admin_id,admins,_id,Many-to-One,UMKM dibuat/dikelola oleh Admin,No,SET NULL
+umkms,verified_by,admins,_id,Many-to-One,UMKM diverifikasi oleh Admin,No,SET NULL

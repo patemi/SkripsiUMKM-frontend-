@@ -11,6 +11,7 @@ export interface UMKM {
   jamOperasional: JamOperasional;
   kontak: Kontak;
   status: 'pending' | 'approved' | 'rejected';
+  alasan_penolakan?: string;
   views: number;
   createdAt: Date;
   updatedAt: Date;

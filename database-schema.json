@@ -1,0 +1,364 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "UMKM Database Schema",
+  "description": "Database schema for UMKM Solo Raya Platform",
+  "type": "object",
+  "definitions": {
+    "UMKM": {
+      "type": "object",
+      "title": "UMKM Collection",
+      "description": "Koleksi data UMKM (Usaha Mikro Kecil Menengah)",
+      "properties": {
+        "_id": {
+          "type": "string",
+          "description": "MongoDB ObjectId - Primary Key",
+          "pattern": "^[0-9a-fA-F]{24}$"
+        },
+        "nama_umkm": {
+          "type": "string",
+          "description": "Nama UMKM",
+          "minLength": 3,
+          "maxLength": 200
+        },
+        "kategori": {
+          "type": "string",
+          "description": "Kategori UMKM",
+          "enum": [
+            "Kuliner",
+            "Fashion",
+            "Kerajinan",
+            "Jasa",
+            "Agribisnis & Pertanian",
+            "Toko Kelontong"
+          ]
+        },
+        "deskripsi": {
+          "type": "string",
+          "description": "Deskripsi lengkap UMKM",
+          "minLength": 10,
+          "maxLength": 2000
+        },
+        "alamat": {
+          "type": "string",
+          "description": "Alamat lengkap UMKM",
+          "minLength": 10,
+          "maxLength": 500
+        },
+        "maps": {
+          "type": "string",
+          "description": "Link Google Maps",
+          "format": "uri"
+        },
+        "foto_umkm": {
+          "type": "array",
+          "description": "Array foto UMKM (base64 atau URL)",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 0,
+          "maxItems": 10
+        },
+        "pembayaran": {
+          "type": "array",
+          "description": "Metode pembayaran yang diterima",
+          "items": {
+            "type": "string",
+            "enum": ["Tunai", "QRIS", "Debit Card", "Transfer Bank", "E-Wallet"]
+          },
+          "minItems": 1
+        },
+        "jam_operasional": {
+          "type": "object",
+          "description": "Jam operasional per hari",
+          "properties": {
+            "senin": {
+              "type": "string",
+              "description": "Jam buka hari Senin (format: HH:MM - HH:MM atau Tutup)"
+            },
+            "selasa": {
+              "type": "string",
+              "description": "Jam buka hari Selasa"
+            },
+            "rabu": {
+              "type": "string",
+              "description": "Jam buka hari Rabu"
+            },
+            "kamis": {
+              "type": "string",
+              "description": "Jam buka hari Kamis"
+            },
+            "jumat": {
+              "type": "string",
+              "description": "Jam buka hari Jumat"
+            },
+            "sabtu": {
+              "type": "string",
+              "description": "Jam buka hari Sabtu"
+            },
+            "minggu": {
+              "type": "string",
+              "description": "Jam buka hari Minggu"
+            }
+          },
+          "required": ["senin", "selasa", "rabu", "kamis", "jumat", "sabtu", "minggu"]
+        },
+        "kontak": {
+          "type": "object",
+          "description": "Informasi kontak UMKM",
+          "properties": {
+            "telepon": {
+              "type": "string",
+              "description": "Nomor telepon"
+            },
+            "whatsapp": {
+              "type": "string",
+              "description": "Nomor WhatsApp"
+            },
+            "email": {
+              "type": "string",
+              "description": "Email UMKM",
+              "format": "email"
+            },
+            "instagram": {
+              "type": "string",
+              "description": "Username Instagram"
+            },
+            "facebook": {
+              "type": "string",
+              "description": "Username atau URL Facebook"
+            }
+          }
+        },
+        "status": {
+          "type": "string",
+          "description": "Status verifikasi UMKM",
+          "enum": ["pending", "approved", "rejected"],
+          "default": "pending"
+        },
+        "views": {
+          "type": "integer",
+          "description": "Jumlah views/kunjungan halaman UMKM",
+          "minimum": 0,
+          "default": 0
+        },
+        "user_id": {
+          "type": "string",
+          "description": "Reference ke User yang mendaftarkan UMKM",
+          "pattern": "^[0-9a-fA-F]{24}$"
+        },
+        "admin_id": {
+          "type": "string",
+          "description": "Reference ke Admin yang membuat/mengelola UMKM (optional)",
+          "pattern": "^[0-9a-fA-F]{24}$"
+        },
+        "verified_by": {
+          "type": "string",
+          "description": "Reference ke Admin yang memverifikasi (jika approved)",
+          "pattern": "^[0-9a-fA-F]{24}$"
+        },
+        "verified_at": {
+          "type": "string",
+          "description": "Tanggal verifikasi",
+          "format": "date-time"
+        },
+        "rejection_reason": {
+          "type": "string",
+          "description": "Alasan penolakan (jika rejected)"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Tanggal dibuat",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Tanggal terakhir diupdate",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "nama_umkm",
+        "kategori",
+        "deskripsi",
+        "alamat",
+        "pembayaran",
+        "jam_operasional",
+        "status"
+      ]
+    },
+    "User": {
+      "type": "object",
+      "title": "User Collection",
+      "description": "Koleksi data pengguna/pemilik UMKM",
+      "properties": {
+        "_id": {
+          "type": "string",
+          "description": "MongoDB ObjectId - Primary Key",
+          "pattern": "^[0-9a-fA-F]{24}$"
+        },
+        "nama": {
+          "type": "string",
+          "description": "Nama lengkap user",
+          "minLength": 3,
+          "maxLength": 100
+        },
+        "username": {
+          "type": "string",
+          "description": "Username user (unique)",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "email": {
+          "type": "string",
+          "description": "Email user (unique)",
+          "format": "email"
+        },
+        "password": {
+          "type": "string",
+          "description": "Password (hashed dengan bcrypt)",
+          "minLength": 8
+        },
+        "telepon": {
+          "type": "string",
+          "description": "Nomor telepon user"
+        },
+        "role": {
+          "type": "string",
+          "description": "Role user",
+          "enum": ["user"],
+          "default": "user"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Tanggal registrasi",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Tanggal terakhir diupdate",
+          "format": "date-time"
+        }
+      },
+      "required": ["nama", "username", "email", "password"],
+      "indexes": [
+        {
+          "name": "email_unique",
+          "keys": {
+            "email": 1
+          },
+          "options": {
+            "unique": true
+          }
+        },
+        {
+          "name": "username_unique",
+          "keys": {
+            "username": 1
+          },
+          "options": {
+            "unique": true
+          }
+        }
+      ]
+    },
+    "Admin": {
+      "type": "object",
+      "title": "Admin Collection",
+      "description": "Koleksi data administrator sistem",
+      "properties": {
+        "_id": {
+          "type": "string",
+          "description": "MongoDB ObjectId - Primary Key",
+          "pattern": "^[0-9a-fA-F]{24}$"
+        },
+        "nama": {
+          "type": "string",
+          "description": "Nama lengkap admin",
+          "minLength": 3,
+          "maxLength": 100
+        },
+        "email": {
+          "type": "string",
+          "description": "Email admin (unique)",
+          "format": "email"
+        },
+        "password": {
+          "type": "string",
+          "description": "Password (hashed dengan bcrypt)"
+        },
+        "role": {
+          "type": "string",
+          "description": "Role admin",
+          "enum": ["admin", "super_admin"],
+          "default": "admin"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Tanggal dibuat",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Tanggal terakhir diupdate",
+          "format": "date-time"
+        }
+      },
+      "required": ["nama", "email", "password"],
+      "indexes": [
+        {
+          "name": "email_unique",
+          "keys": {
+            "email": 1
+          },
+          "options": {
+            "unique": true
+          }
+        }
+      ]
+    }
+  },
+  "relationships": [
+    {
+      "name": "User_UMKM",
+      "description": "Satu User dapat mendaftarkan banyak UMKM",
+      "type": "one-to-many",
+      "from": {
+        "collection": "users",
+        "field": "_id"
+      },
+      "to": {
+        "collection": "umkms",
+        "field": "user_id"
+      }
+    },
+    {
+      "name": "Admin_UMKM_Verification",
+      "description": "Satu Admin dapat memverifikasi banyak UMKM",
+      "type": "one-to-many",
+      "from": {
+        "collection": "admins",
+        "field": "_id"
+      },
+      "to": {
+        "collection": "umkms",
+        "field": "verified_by"
+      }
+    }
+  ],
+  "database": {
+    "name": "umkm_db",
+    "type": "MongoDB",
+    "version": "5.0+",
+    "collections": {
+      "umkms": {
+        "$ref": "#/definitions/UMKM"
+      },
+      "users": {
+        "$ref": "#/definitions/User"
+      },
+      "admins": {
+        "$ref": "#/definitions/Admin"
+      }
+    }
+  }
+}

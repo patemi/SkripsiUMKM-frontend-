@@ -11,15 +11,20 @@ import {
   FiTrendingUp,
   FiMenu,
   FiX,
-  FiLogOut
+  FiLogOut,
+  FiUsers,
+  FiUser
 } from 'react-icons/fi';
+import { isAdminAuthenticated, getAdminData, logoutAdmin, clearAdminSession } from '@/lib/auth';
 
 const menuItems = [
   { href: '/admin', label: 'Dashboard', icon: FiHome },
   { href: '/admin/umkm', label: 'Kelola UMKM', icon: FiShoppingBag },
   { href: '/admin/verification', label: 'Aktivitas Terbaru', icon: FiCheckCircle },
+  { href: '/admin/users', label: 'Daftar User', icon: FiUsers },
   { href: '/admin/activity-logs', label: 'Log Aktivitas', icon: FiFileText },
   { href: '/admin/analytics', label: 'Analisis Pertumbuhan', icon: FiTrendingUp },
+  { href: '/admin/profile', label: 'Profil Admin', icon: FiUser },
 ];
 
 export default function AdminLayout({
@@ -35,59 +40,72 @@ export default function AdminLayout({
   const [adminName, setAdminName] = useState('Admin User');
 
   useEffect(() => {
-    // Check authentication
+    // Immediate sync check - no async operations
     const token = localStorage.getItem('token');
+    const adminData = localStorage.getItem('admin');
     
-    if (!token) {
-      // Redirect to login if no token
-      router.push('/login');
+    // Quick check - jika tidak ada token, langsung redirect
+    if (!token || !adminData) {
+      clearAdminSession();
+      window.location.replace('/login');
       return;
     }
 
-    // Get admin info from localStorage
-    const adminData = localStorage.getItem('admin');
-    if (adminData) {
-      try {
-        const admin = JSON.parse(adminData);
-        setAdminName(admin.nama_admin || 'Admin User');
-      } catch (error) {
-        console.error('Error parsing admin data:', error);
-      }
+    // Parse admin data
+    try {
+      const admin = JSON.parse(adminData);
+      setAdminName(admin.nama_admin || 'Admin User');
+      setIsAuthenticated(true);
+      setIsLoading(false);
+    } catch (error) {
+      clearAdminSession();
+      window.location.replace('/login');
     }
-
-    setIsAuthenticated(true);
-    setIsLoading(false);
-  }, [router]);
+  }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('admin');
-    router.push('/login');
+    logoutAdmin();
+    // Force redirect dan reload untuk clear state
+    window.location.href = '/login';
   };
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 text-sm">Loading...</p>
+        </div>
       </div>
     );
   }
 
   if (!isAuthenticated) {
-    return null;
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-center">
+          <p className="text-gray-600">Redirecting to login...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Mobile menu button */}
-      <div className="lg:hidden fixed top-4 left-4 z-50">
-        <button
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="p-2 rounded-lg bg-white shadow-md text-gray-700 hover:bg-gray-100"
-        >
-          {isSidebarOpen ? <FiX size={24} /> : <FiMenu size={24} />}
-        </button>
-      </div>
+      {/* Mobile Header with Menu Button - Only visible on mobile */}
+      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white shadow-md">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div>
+            <h1 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">UMKM Admin</h1>
+          </div>
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="p-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+          >
+            {isSidebarOpen ? <FiX size={24} /> : <FiMenu size={24} />}
+          </button>
+        </div>
+      </header>
 
       {/* Sidebar */}
       <aside
@@ -141,7 +159,7 @@ export default function AdminLayout({
       </aside>
 
       {/* Main content */}
-      <div className="lg:ml-64 p-4 lg:p-8">
+      <div className="lg:ml-64 p-3 sm:p-4 lg:p-8 pt-20 sm:pt-20 lg:pt-8">
         <div className="max-w-7xl mx-auto">
           {children}
         </div>

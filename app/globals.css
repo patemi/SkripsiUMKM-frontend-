@@ -21,6 +21,17 @@ body {
 /* Smooth Scroll */
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 80px; /* Add padding for fixed header offset */
+}
+
+/* Enhanced smooth scrolling */
+* {
+  scroll-margin-top: 80px;
+}
+
+body {
+  overflow-x: hidden;
+  transition: opacity 0.3s ease;
 }
 
 /* Fade-in Animation */
@@ -77,8 +88,77 @@ html {
   }
 }
 
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDownMenu {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes progressBar {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
 .animate-fade-in {
   animation: fadeInUp 0.6s ease-out forwards;
+}
+
+.animate-fadeIn {
+  animation: slideDown 0.3s ease-out forwards;
+}
+
+.animate-slideInUp {
+  animation: slideInUp 0.4s ease-out forwards;
+}
+
+.animate-slideDown {
+  animation: slideDownMenu 0.3s ease-out forwards;
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.5s ease-out forwards;
 }
 
 .animate-fade {
@@ -95,6 +175,14 @@ html {
 
 .animate-scale {
   animation: scaleIn 0.5s ease-out forwards;
+}
+
+.animate-progressBar {
+  animation: progressBar 2s ease-in-out infinite;
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 /* Stagger animation delays */
@@ -128,15 +216,21 @@ html {
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
 
-/* Smooth transitions */
-* {
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
+/* Remove problematic global transition - it can cause input issues */
+/* Keep transitions for specific elements only */
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+  
+  /* Hide scrollbar for horizontal scroll categories */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
   }
 }

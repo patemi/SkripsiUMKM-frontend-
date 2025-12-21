@@ -49,6 +49,7 @@ export default function CreateUMKMPage() {
   const [jamOperasional, setJamOperasional] = useState<{ [key: string]: string }>({});
   const [jamOperasionalBackup, setJamOperasionalBackup] = useState<{ [key: string]: string }>({});
   const [metodePembayaranError, setMetodePembayaranError] = useState<boolean>(false);
+  const [jamOperasionalError, setJamOperasionalError] = useState<boolean>(false);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -77,6 +78,19 @@ export default function CreateUMKMPage() {
       alert('Pilih minimal 1 metode pembayaran!');
       // Scroll to metode pembayaran section
       document.getElementById('metode-pembayaran')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    
+    // Validasi jam operasional - minimal 1 hari harus diisi
+    const hasOperationalDay = Object.values(jamOperasional).some(
+      (value) => value !== undefined && value !== 'Tutup'
+    );
+    
+    if (!hasOperationalDay) {
+      setJamOperasionalError(true);
+      alert('Tentukan jam operasional minimal untuk 1 hari!');
+      // Scroll to jam operasional section
+      document.getElementById('jam-operasional')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
     
@@ -264,10 +278,11 @@ export default function CreateUMKMPage() {
                   required
                 />
                 <Input
-                  label="Link Google Maps"
+                  label="Link Google Maps *"
                   placeholder="https://maps.google.com/..."
                   value={formData.linkMaps}
                   onChange={(e) => setFormData({ ...formData, linkMaps: e.target.value })}
+                  required
                 />
               </div>
             </div>
@@ -355,9 +370,20 @@ export default function CreateUMKMPage() {
             </div>
 
             {/* Jam Operasional */}
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Jam Operasional</h2>
-              <div className="space-y-3">
+            <div id="jam-operasional">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Jam Operasional <span className="text-red-600">*</span>
+                </h2>
+                {jamOperasionalError && (
+                  <span className="text-sm text-red-600 font-medium animate-pulse">
+                    Pilih minimal 1 hari!
+                  </span>
+                )}
+              </div>
+              <div className={`space-y-3 p-4 rounded-lg border-2 transition-colors ${
+                jamOperasionalError ? 'border-red-300 bg-red-50' : 'border-transparent'
+              }`}>
                 {hariOptions.map((hari) => (
                   <div key={hari.key} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                     <div className="flex flex-col md:flex-row md:items-center gap-4">
@@ -369,6 +395,10 @@ export default function CreateUMKMPage() {
                             const newValue = e.target.checked ? '08:00 - 17:00' : 'Tutup';
                             const newJam = { ...jamOperasional, [hari.key]: newValue };
                             setJamOperasional(newJam);
+                            // Clear error when user selects a day
+                            if (e.target.checked) {
+                              setJamOperasionalError(false);
+                            }
                             // Auto-save backup on first interaction
                             if (Object.keys(jamOperasionalBackup).length === 0) {
                               setJamOperasionalBackup(jamOperasional);
@@ -509,7 +539,7 @@ export default function CreateUMKMPage() {
               <Button
                 type="button"
                 variant="secondary"
-                onClick={() => router.back()}
+                onClick={() => router.push('/admin')}
                 disabled={loading}
               >
                 <FiX className="mr-2" />

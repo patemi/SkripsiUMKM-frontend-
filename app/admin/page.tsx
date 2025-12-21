@@ -12,7 +12,11 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchDashboardData();
+    // Langsung load data - auth sudah dicek di layout
+    const loadData = async () => {
+      await fetchDashboardData();
+    };
+    loadData();
   }, []);
 
   const fetchDashboardData = async () => {
@@ -27,7 +31,7 @@ export default function AdminDashboard() {
       });
       const statsData = await statsRes.json();
       
-      // Fetch top UMKM
+      // Fetch top UMKM - hanya yang approved
       const topRes = await fetch(`${API_URL}/umkm/top?limit=5`, {
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
@@ -51,7 +55,7 @@ export default function AdminDashboard() {
         });
       }
       
-      if (topData.success) {
+      if (topData.success && topData.data) {
         const mappedTop = topData.data.map((item: any) => ({
           id: item._id,
           nama: item.nama_umkm,
@@ -87,11 +91,11 @@ export default function AdminDashboard() {
   const totalUMKM = Object.values(statistics?.umkmPerKategori || {}).reduce((a, b) => a + b, 0);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4 sm:space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-1">Selamat datang di panel admin UMKM</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-sm sm:text-base text-gray-600 mt-1">Selamat datang di panel admin UMKM</p>
       </div>
 
       {/* Stats Grid */}
@@ -118,15 +122,15 @@ export default function AdminDashboard() {
 
       {/* UMKM per Kategori */}
       <Card>
-        <h2 className="text-xl font-bold text-gray-900 mb-4">UMKM per Kategori</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">UMKM per Kategori</h2>
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
           {statistics && Object.entries(statistics.umkmPerKategori).map(([kategori, count]) => (
             <div
               key={kategori}
-              className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200"
+              className="p-3 sm:p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200"
             >
-              <p className="text-sm text-gray-600 font-medium">{kategori}</p>
-              <p className="text-2xl font-bold text-blue-600 mt-1">{count}</p>
+              <p className="text-xs sm:text-sm text-gray-600 font-medium truncate">{kategori}</p>
+              <p className="text-xl sm:text-2xl font-bold text-blue-600 mt-1">{count}</p>
             </div>
           ))}
         </div>
@@ -134,35 +138,35 @@ export default function AdminDashboard() {
 
       {/* Top Favorite UMKM */}
       <Card>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900">Top 5 UMKM Favorit</h2>
-          <FiTrendingUp className="text-orange-500" size={24} />
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900">Top 5 UMKM Favorit</h2>
+          <FiTrendingUp className="text-orange-500" size={20} />
         </div>
         
-        <div className="space-y-3">
+        <div className="space-y-2 sm:space-y-3">
           {topUMKM.length === 0 ? (
             <p className="text-gray-500 text-center py-8">Belum ada data UMKM</p>
           ) : (
             topUMKM.map((umkm, index) => (
               <div
                 key={umkm.id}
-                className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors gap-2"
               >
-                <div className="flex items-center space-x-4">
-                  <div className="flex-shrink-0 w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
+                <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
+                  <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm sm:text-base">
                     {index + 1}
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{umkm.nama}</h3>
-                    <p className="text-sm text-gray-600">{umkm.kategori}</p>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">{umkm.nama}</h3>
+                    <p className="text-xs sm:text-sm text-gray-600 truncate">{umkm.kategori}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="flex items-center text-gray-700">
-                    <FiEye className="mr-1" />
-                    <span className="font-semibold">{umkm.views}</span>
+                <div className="text-right flex-shrink-0">
+                  <div className="flex items-center text-gray-700 gap-1">
+                    <FiEye size={14} />
+                    <span className="font-semibold text-sm sm:text-base">{umkm.views}</span>
                   </div>
-                  <p className="text-xs text-gray-500">views</p>
+                  <p className="text-[10px] sm:text-xs text-gray-500">views</p>
                 </div>
               </div>
             ))
@@ -172,28 +176,28 @@ export default function AdminDashboard() {
 
       {/* Quick Actions */}
       <Card>
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <a
             href="/admin/umkm/create"
-            className="p-6 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-center transition-colors"
+            className="p-4 sm:p-6 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-center transition-colors"
           >
-            <FiShoppingBag className="mx-auto mb-2" size={32} />
-            <p className="font-semibold">Tambah UMKM Baru</p>
+            <FiShoppingBag className="mx-auto mb-2" size={24} />
+            <p className="font-semibold text-sm sm:text-base">Tambah UMKM Baru</p>
           </a>
           <a
             href="/admin/verification"
-            className="p-6 bg-green-600 hover:bg-green-700 text-white rounded-lg text-center transition-colors"
+            className="p-4 sm:p-6 bg-green-600 hover:bg-green-700 text-white rounded-lg text-center transition-colors"
           >
-            <FiCheckCircle className="mx-auto mb-2" size={32} />
-            <p className="font-semibold">Verifikasi UMKM</p>
+            <FiCheckCircle className="mx-auto mb-2" size={24} />
+            <p className="font-semibold text-sm sm:text-base">Verifikasi UMKM</p>
           </a>
           <a
             href="/admin/analytics"
-            className="p-6 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-center transition-colors"
+            className="p-4 sm:p-6 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-center transition-colors"
           >
-            <FiTrendingUp className="mx-auto mb-2" size={32} />
-            <p className="font-semibold">Lihat Analisis</p>
+            <FiTrendingUp className="mx-auto mb-2" size={24} />
+            <p className="font-semibold text-sm sm:text-base">Lihat Analisis</p>
           </a>
         </div>
       </Card>
