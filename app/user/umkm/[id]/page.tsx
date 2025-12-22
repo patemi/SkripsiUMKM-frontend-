@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FiArrowLeft, FiMapPin, FiPhone, FiMail, FiInstagram, FiFacebook, FiClock, FiEye, FiExternalLink, FiChevronLeft, FiChevronRight, FiX, FiMaximize2 } from 'react-icons/fi';
 import { API_URL } from '@/lib/api';
+import Map from '@/components/ui/Map';
 
 interface UMKM {
   _id: string;
@@ -133,6 +134,29 @@ export default function UMKMDetailPage() {
     setPanPosition({ x: 0, y: 0 });
     // Re-enable scrolling on body
     document.body.style.overflow = 'auto';
+  };
+
+  // Extract coordinates from Google Maps URL
+  const extractCoordinates = (mapsUrl: string): { lat: number; lng: number } | null => {
+    if (!mapsUrl) return null;
+
+    const patterns = [
+      /@(-?\d+\.\d+),(-?\d+\.\d+)/, // @lat,lng format
+      /q=(-?\d+\.\d+),(-?\d+\.\d+)/, // q=lat,lng format
+      /ll=(-?\d+\.\d+),(-?\d+\.\d+)/, // ll=lat,lng format
+    ];
+
+    for (const pattern of patterns) {
+      const match = mapsUrl.match(pattern);
+      if (match) {
+        const lat = parseFloat(match[1]);
+        const lng = parseFloat(match[2]);
+        if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+          return { lat, lng };
+        }
+      }
+    }
+    return null;
   };
 
   const toggleZoom = (e?: React.MouseEvent) => {
@@ -548,6 +572,28 @@ export default function UMKMDetailPage() {
                 <h3 className="text-xl font-bold text-gray-900">Lokasi</h3>
               </div>
               <p className="text-gray-600 mb-4">{umkm.alamat}</p>
+              
+              {/* Interactive Map */}
+              {umkm.maps && extractCoordinates(umkm.maps) && (
+                <div className="mb-4">
+                  <Map
+                    markers={[
+                      {
+                        id: umkm._id,
+                        nama: umkm.nama_umkm,
+                        lat: extractCoordinates(umkm.maps)!.lat,
+                        lng: extractCoordinates(umkm.maps)!.lng,
+                        kategori: umkm.kategori,
+                        alamat: umkm.alamat,
+                      },
+                    ]}
+                    center={extractCoordinates(umkm.maps)!}
+                    zoom={16}
+                    height="300px"
+                  />
+                </div>
+              )}
+              
               {umkm.maps && (
                 <a
                   href={umkm.maps}

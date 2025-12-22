@@ -1,15 +1,40 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FiUsers, FiShoppingBag, FiTrendingUp, FiEye, FiCheckCircle } from 'react-icons/fi';
+import { FiUsers, FiShoppingBag, FiTrendingUp, FiEye, FiCheckCircle, FiMapPin } from 'react-icons/fi';
 import { StatCard, Card } from '@/components/ui/Card';
 import { Statistics, UMKM } from '@/types';
 import { API_URL } from '@/lib/api';
+import Map from '@/components/ui/Map';
 
 export default function AdminDashboard() {
   const [statistics, setStatistics] = useState<Statistics | null>(null);
   const [topUMKM, setTopUMKM] = useState<UMKM[]>([]);
+  const [allUMKM, setAllUMKM] = useState<UMKM[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Extract coordinates from Google Maps URL
+  const extractCoordinates = (mapsUrl: string): { lat: number; lng: number } | null => {
+    if (!mapsUrl) return null;
+
+    const patterns = [
+      /@(-?\d+\.\d+),(-?\d+\.\d+)/, // @lat,lng format
+      /q=(-?\d+\.\d+),(-?\d+\.\d+)/, // q=lat,lng format
+      /ll=(-?\d+\.\d+),(-?\d+\.\d+)/, // ll=lat,lng format
+    ];
+
+    for (const pattern of patterns) {
+      const match = mapsUrl.match(pattern);
+      if (match) {
+        const lat = parseFloat(match[1]);
+        const lng = parseFloat(match[2]);
+        if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+          return { lat, lng };
+        }
+      }
+    }
+    return null;
+  };
 
   useEffect(() => {
     // Langsung load data - auth sudah dicek di layout
@@ -72,6 +97,33 @@ export default function AdminDashboard() {
           userId: item.user_id,
         }));
         setTopUMKM(mappedTop);
+      }
+
+      // Fetch all UMKM for map
+      const allRes = await fetch(`${API_URL}/umkm?status=approved`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        }
+      });
+      const allData = await allRes.json();
+      
+      if (allData.success && allData.data) {
+        const mappedAll = allData.data.map((item: any) => ({
+          id: item._id,
+          nama: item.nama_umkm,
+          kategori: item.kategori,
+          deskripsi: item.deskripsi,
+          alamat: item.alamat,
+          linkMaps: item.maps || '',
+          foto: item.foto_umkm || [],
+          metodePembayaran: item.pembayaran || [],
+          jamOperasional: item.jam_operasional || {},
+          kontak: item.kontak || {},
+          status: item.status,
+          views: item.views || 0,
+          userId: item.user_id,
+        }));
+        setAllUMKM(mappedAll);
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -139,7 +191,7 @@ export default function AdminDashboard() {
       {/* Top Favorite UMKM */}
       <Card>
         <div className="flex items-center justify-between mb-3 sm:mb-4">
-          <h2 className="text-lg sm:text-xl font-bold text-gray-900">Top 5 UMKM Favorit</h2>
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900">Top 3 UMKM Paling Banyak Dilihat</h2>
           <FiTrendingUp className="text-orange-500" size={20} />
         </div>
         
@@ -172,6 +224,43 @@ export default function AdminDashboard() {
             ))
           )}
         </div>
+      </Card>
+
+      {/* UMKM Distribution Map */}
+      <Card>
+        <div className="flex items-center mb-4">
+          <FiMapPin className="text-blue-600 text-xl mr-2" />
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900">Sebaran Lokasi UMKM</h2>
+        </div>
+        <p className="text-sm text-gray-600 mb-4">
+          Visualisasi lokasi {allUMKM.filter(u => u.linkMaps).length} UMKM yang memiliki data lokasi
+        </p>
+        {allUMKM.filter(u => u.linkMaps).length > 0 ? (
+          <Map
+            markers={allUMKM
+              .map((umkm) => {
+                const coords = extractCoordinates(umkm.linkMaps || '');
+                if (!coords) return null;
+                return {
+                  id: umkm.id,
+                  nama: umkm.nama,
+                  lat: coords.lat,
+                  lng: coords.lng,
+                  kategori: umkm.kategori,
+                  alamat: umkm.alamat,
+                };
+              })
+              .filter((marker): marker is NonNullable<typeof marker> => marker !== null)}
+            center={{ lat: -7.5598, lng: 110.8290 }} // Default to Solo
+            zoom={12}
+            height="500px"
+          />
+        ) : (
+          <div className="text-center py-12 bg-gray-50 rounded-lg">
+            <FiMapPin className="mx-auto text-gray-300 mb-4" size={48} />
+            <p className="text-gray-500">Belum ada UMKM dengan data lokasi</p>
+          </div>
+        )}
       </Card>
 
       {/* Quick Actions */}

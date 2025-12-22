@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { FiMapPin, FiClock, FiPhone, FiInstagram, FiEye, FiFilter, FiSearch, FiLogOut, FiUser, FiList, FiCheckCircle, FiXCircle, FiArrowUp, FiTrash2, FiAlertTriangle, FiMenu, FiX } from 'react-icons/fi';
 import { API_URL } from '@/lib/api';
 import { startActivityTracking, stopActivityTracking, setupActivityListeners } from '@/lib/activityTracker';
+import Map from '@/components/ui/Map';
 
 interface UMKM {
   _id: string;
@@ -57,8 +58,21 @@ export default function UserHomePage() {
   const [showDeleteError, setShowDeleteError] = useState(false);
   const [deleteMessage, setDeleteMessage] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showLocationPermission, setShowLocationPermission] = useState(false);
+  const [showLocationSuccess, setShowLocationSuccess] = useState(false);
+  const [showLocationError, setShowLocationError] = useState(false);
+  const [detectedCoords, setDetectedCoords] = useState<{lat: number; lng: number} | null>(null);
+  const [locationError, setLocationError] = useState('');
+  const [viewMode, setViewMode] = useState<'cards' | 'map'>('cards'); // 'cards' or 'map'
+  
   const resultsRef = useRef<HTMLDivElement>(null);
   const myUMKMScrollRef = useRef<HTMLDivElement>(null);
+
+  // Function to handle location permission acceptance
+  const handleLocationPermissionAccept = () => {
+    setShowLocationPermission(false);
+    getUserLocationWithModal();
+  };
 
   // Function to handle search and scroll to results
   const handleSearch = () => {
@@ -263,6 +277,8 @@ export default function UserHomePage() {
 
     // Sort by distance if user location is available
     if (sortByDistance && userLocation) {
+      console.log('🔍 Sorting by distance from:', userLocation);
+      
       filtered = filtered
         .map(umkm => {
           const umkmCoords = extractCoordinates(umkm.maps || '');
@@ -273,13 +289,15 @@ export default function UserHomePage() {
               umkmCoords.lat,
               umkmCoords.lng
             );
+            console.log(`📍 ${umkm.nama_umkm}: ${distance.toFixed(2)}km from user`);
             return { ...umkm, distance };
           }
-          return { ...umkm, distance: 999999 }; // Put items without coordinates at the end
+          return { ...umkm, distance: 999999 };
         })
-        .filter(umkm => (umkm as any).distance < 999999) // Only show UMKM with valid location data
+        .filter(umkm => (umkm as any).distance <= 20) // Only show UMKM within 20km radius
         .sort((a, b) => (a.distance || 999999) - (b.distance || 999999));
-      console.log('After distance sort, showing only UMKM with location data');
+      
+      console.log('After distance sort, showing:', filtered.length, 'UMKM within 20km radius');
     }
 
     console.log('Setting filteredUMKM to:', filtered.length, 'items');
@@ -516,28 +534,8 @@ export default function UserHomePage() {
   };
 
   const getUserLocation = () => {
-    setLoadingLocation(true);
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
-          setSortByDistance(true);
-          setLoadingLocation(false);
-          console.log('✅ User location obtained:', position.coords.latitude, position.coords.longitude);
-        },
-        (error) => {
-          console.error('❌ Error getting location:', error);
-          alert('Tidak dapat mengakses lokasi Anda. Pastikan izin lokasi diaktifkan.');
-          setLoadingLocation(false);
-        }
-      );
-    } else {
-      alert('Browser Anda tidak mendukung geolocation');
-      setLoadingLocation(false);
-    }
+    // Show permission modal first
+    setShowLocationPermission(true);
   };
 
   const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
@@ -557,7 +555,7 @@ export default function UserHomePage() {
     if (!mapsUrl) return null;
     
     // Try to extract coordinates from Google Maps URL
-    // Format: https://maps.google.com/?q=-7.5678,110.1234 or https://goo.gl/maps/...
+    // Format: https://maps.google.com/?q=-7.5678,110.1234 or various other formats
     const patterns = [
       /@(-?\d+\.\d+),(-?\d+\.\d+)/, // @lat,lng format
       /q=(-?\d+\.\d+),(-?\d+\.\d+)/, // q=lat,lng format
@@ -567,14 +565,62 @@ export default function UserHomePage() {
     for (const pattern of patterns) {
       const match = mapsUrl.match(pattern);
       if (match) {
-        return {
-          lat: parseFloat(match[1]),
-          lng: parseFloat(match[2])
-        };
+        const lat = parseFloat(match[1]);
+        const lng = parseFloat(match[2]);
+        // Validate coordinates
+        if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+          return { lat, lng };
+        }
       }
     }
     
     return null;
+  };
+
+  const getUserLocationWithModal = async () => {
+    setLoadingLocation(true);
+    console.log('📍 Requesting user location...');
+    
+    if (!navigator.geolocation) {
+      console.error('❌ Geolocation not supported');
+      setLocationError('Browser Anda tidak mendukung geolocation');
+      setShowLocationError(true);
+      setLoadingLocation(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        console.log('✅ Location detected:', { latitude, longitude });
+        setUserLocation({ lat: latitude, lng: longitude });
+        setDetectedCoords({ lat: latitude, lng: longitude });
+        setSortByDistance(true);
+        setLoadingLocation(false);
+        setShowLocationSuccess(true);
+        
+        // Auto-close success modal after 3 seconds
+        setTimeout(() => {
+          setShowLocationSuccess(false);
+        }, 3000);
+      },
+      (error) => {
+        console.error('❌ Error getting location:', error.message);
+        let errorMsg = 'Tidak dapat mengakses lokasi Anda';
+        
+        if (error.code === error.PERMISSION_DENIED) {
+          errorMsg = 'Izin akses lokasi ditolak. Silakan ubah pengaturan browser Anda.';
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          errorMsg = 'Informasi lokasi tidak tersedia.';
+        } else if (error.code === error.TIMEOUT) {
+          errorMsg = 'Permintaan lokasi timeout. Silakan coba lagi.';
+        }
+        
+        setLocationError(errorMsg);
+        setShowLocationError(true);
+        setLoadingLocation(false);
+      }
+    );
   };
 
   const isOpen = (jamOperasional: { [key: string]: string }) => {
@@ -728,6 +774,113 @@ export default function UserHomePage() {
               >
                 Tutup
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Location Permission Modal */}
+      {showLocationPermission && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm">
+          <div className="fixed inset-0 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full transform animate-in">
+              <div className="bg-gradient-to-r from-blue-500 to-cyan-500 p-6 rounded-t-2xl text-white">
+                <div className="flex items-center justify-center mb-3">
+                  <div className="bg-white/20 p-3 rounded-full">
+                    <FiMapPin className="text-2xl" />
+                  </div>
+                </div>
+                <h3 className="text-xl font-bold text-center">Aktifkan Lokasi</h3>
+              </div>
+              
+              <div className="p-6">
+                <p className="text-gray-700 text-center mb-6">
+                  Izinkan akses lokasi untuk menemukan UMKM terdekat dengan Anda
+                </p>
+                
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowLocationPermission(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+                  >
+                    Nanti
+                  </button>
+                  <button
+                    onClick={handleLocationPermissionAccept}
+                    className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg hover:shadow-lg transition"
+                  >
+                    Aktifkan
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Location Success Modal */}
+      {showLocationSuccess && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm">
+          <div className="fixed inset-0 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full transform animate-in">
+              <div className="bg-gradient-to-r from-green-500 to-emerald-500 p-6 rounded-t-2xl text-white">
+                <div className="flex items-center justify-center mb-3">
+                  <div className="bg-white/20 p-3 rounded-full">
+                    <FiCheckCircle className="text-2xl" />
+                  </div>
+                </div>
+                <h3 className="text-xl font-bold text-center">Lokasi Terdeteksi</h3>
+              </div>
+              
+              <div className="p-6">
+                <p className="text-gray-700 text-center mb-4">
+                  Lokasi Anda telah terdeteksi dengan sukses
+                </p>
+                
+                {detectedCoords && (
+                  <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-4 rounded-lg mb-6">
+                    <p className="text-sm text-gray-600 font-medium mb-2">Koordinat Anda:</p>
+                    <p className="text-sm font-mono text-blue-600">
+                      {detectedCoords.lat.toFixed(4)}, {detectedCoords.lng.toFixed(4)}
+                    </p>
+                  </div>
+                )}
+                
+                <p className="text-sm text-gray-500 text-center">
+                  Menampilkan UMKM dalam radius 20km dari lokasi Anda
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Location Error Modal */}
+      {showLocationError && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm">
+          <div className="fixed inset-0 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full transform animate-in">
+              <div className="bg-gradient-to-r from-red-500 to-orange-500 p-6 rounded-t-2xl text-white">
+                <div className="flex items-center justify-center mb-3">
+                  <div className="bg-white/20 p-3 rounded-full">
+                    <FiXCircle className="text-2xl" />
+                  </div>
+                </div>
+                <h3 className="text-xl font-bold text-center">Lokasi Gagal Dideteksi</h3>
+              </div>
+              
+              <div className="p-6">
+                <p className="text-gray-700 text-center mb-6">
+                  {locationError}
+                </p>
+                
+                <button
+                  onClick={() => setShowLocationError(false)}
+                  className="w-full px-4 py-2 bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-lg hover:shadow-lg transition"
+                >
+                  Tutup
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1294,12 +1447,42 @@ export default function UserHomePage() {
         </div>
 
         {/* Results Count */}
-        <div ref={resultsRef} className="text-center mb-8">
+        <div ref={resultsRef} className="text-center mb-4">
           <p className="text-gray-600">
             Menampilkan <span className="font-bold text-blue-600">{filteredUMKM.length}</span> UMKM
             {selectedKategori !== 'Semua' && <span className="font-semibold"> - Kategori: {selectedKategori}</span>}
             {searchQuery && <span className="font-semibold"> - Pencarian: "{searchQuery}"</span>}
           </p>
+        </div>
+
+        {/* View Mode Toggle */}
+        <div className="flex justify-center mb-8">
+          <div className="bg-white rounded-xl shadow-md p-2 inline-flex gap-2">
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                viewMode === 'cards'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
+              </svg>
+              <span>Cards</span>
+            </button>
+            <button
+              onClick={() => setViewMode('map')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                viewMode === 'map'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <FiMapPin className="w-5 h-5" />
+              <span>Map</span>
+            </button>
+          </div>
         </div>
 
         {/* UMKM Grid */}
@@ -1338,7 +1521,42 @@ export default function UserHomePage() {
               )}
             </div>
           </div>
+        ) : viewMode === 'map' ? (
+          // Map View
+          <div className="mb-8">
+            <Map
+              markers={filteredUMKM
+                .map((umkm) => {
+                  const coords = extractCoordinates(umkm.maps || '');
+                  if (!coords) return null;
+                  return {
+                    id: umkm._id,
+                    nama: umkm.nama_umkm,
+                    lat: coords.lat,
+                    lng: coords.lng,
+                    kategori: umkm.kategori,
+                    distance: (umkm as any).distance,
+                    alamat: umkm.alamat,
+                  };
+                })
+                .filter((marker): marker is NonNullable<typeof marker> => marker !== null)}
+              center={
+                userLocation || { lat: -7.5598, lng: 110.8290 } // Default to Solo
+              }
+              zoom={13}
+              height="600px"
+              onClick={(marker) => {
+                router.push(`/user/umkm/${marker.id}`);
+              }}
+              userLocation={userLocation || undefined}
+              showUserLocation={!!userLocation}
+            />
+            <p className="text-center text-gray-600 mt-4 text-sm">
+              💡 Klik marker pada map untuk melihat detail UMKM
+            </p>
+          </div>
         ) : (
+          // Cards View
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredUMKM.map((umkm, index) => (
               <div
