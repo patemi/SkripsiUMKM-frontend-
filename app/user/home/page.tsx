@@ -1189,10 +1189,13 @@ export default function UserHomePage() {
               </button>
               {userData && (
                 <div className="flex items-center gap-2 md:space-x-4">
-                  <div className="flex items-center space-x-2 text-gray-700">
-                    <FiUser className="text-blue-600" />
+                  <Link
+                    href="/user/profile"
+                    className="flex items-center gap-2 px-3 py-2 text-base text-gray-700 hover:text-blue-600 hover:bg-blue-50 md:hover:bg-transparent rounded-lg transition-colors"
+                  >
+                    <FiUser size={18} />
                     <span className="text-sm">{userData.nama_user}</span>
-                  </div>
+                  </Link>
                   <button
                     onClick={handleLogout}
                     className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-base"
@@ -1246,6 +1249,14 @@ export default function UserHomePage() {
                   <FiList size={20} />
                   <span>UMKM Saya</span>
                 </button>
+                <Link
+                  href="/user/profile"
+                  className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors text-left"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <FiUser size={20} />
+                  <span>Profil Saya</span>
+                </Link>
                 <button
                   onClick={() => {
                     handleLogout();
