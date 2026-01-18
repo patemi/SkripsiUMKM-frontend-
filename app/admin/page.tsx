@@ -1,11 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { FiUsers, FiShoppingBag, FiTrendingUp, FiEye, FiCheckCircle, FiMapPin } from 'react-icons/fi';
 import { StatCard, Card } from '@/components/ui/Card';
 import { Statistics, UMKM } from '@/types';
 import { API_URL } from '@/lib/api';
-import Map from '@/components/ui/Map';
+
+// Dynamic import Map component dengan ssr:false untuk menghindari error 'window is not defined'
+const Map = dynamic(() => import('@/components/ui/Map'), { ssr: false });
 
 export default function AdminDashboard() {
   const [statistics, setStatistics] = useState<Statistics | null>(null);

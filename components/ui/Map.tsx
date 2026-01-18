@@ -98,16 +98,14 @@ export default function Map({
         <div class="font-sans">
           <h3 class="font-bold text-gray-900 mb-1">${marker.nama}</h3>
           <p class="text-xs text-gray-600 mb-1">${marker.kategori || 'UMKM'}</p>
-          ${
-            marker.distance
-              ? `<p class="text-xs font-semibold text-blue-600">📍 ${marker.distance.toFixed(1)} km</p>`
-              : ''
-          }
-          ${
-            marker.alamat
-              ? `<p class="text-xs text-gray-600 mt-2">${marker.alamat}</p>`
-              : ''
-          }
+          ${marker.distance
+          ? `<p class="text-xs font-semibold text-blue-600">📍 ${marker.distance.toFixed(1)} km</p>`
+          : ''
+        }
+          ${marker.alamat
+          ? `<p class="text-xs text-gray-600 mt-2">${marker.alamat}</p>`
+          : ''
+        }
         </div>
       `;
 

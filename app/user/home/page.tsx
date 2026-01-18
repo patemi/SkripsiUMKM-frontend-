@@ -3,10 +3,13 @@
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { FiMapPin, FiClock, FiPhone, FiInstagram, FiEye, FiFilter, FiSearch, FiLogOut, FiUser, FiList, FiCheckCircle, FiXCircle, FiArrowUp, FiTrash2, FiAlertTriangle, FiMenu, FiX } from 'react-icons/fi';
 import { API_URL } from '@/lib/api';
 import { startActivityTracking, stopActivityTracking, setupActivityListeners } from '@/lib/activityTracker';
-import Map from '@/components/ui/Map';
+
+// Dynamic import Map component dengan ssr:false untuk menghindari error 'window is not defined'
+const Map = dynamic(() => import('@/components/ui/Map'), { ssr: false });
 
 interface UMKM {
   _id: string;
