@@ -18,12 +18,12 @@ export interface UMKM {
   userId: string;
 }
 
-export type KategoriUMKM = 
-  | 'Kuliner' 
-  | 'Fashion' 
-  | 'Kerajinan' 
-  | 'Jasa' 
-  | 'Agribisnis & Pertanian' 
+export type KategoriUMKM =
+  | 'Kuliner'
+  | 'Fashion'
+  | 'Kerajinan'
+  | 'Jasa'
+  | 'Agribisnis & Pertanian'
   | 'Toko Kelontong';
 
 export interface JamOperasional {
@@ -59,6 +59,7 @@ export interface ActivityLog {
   adminName: string;
   umkmId: string;
   umkmNama: string;
+  userName?: string;
   action: 'approved' | 'rejected';
   reason?: string;
   timestamp: Date;
