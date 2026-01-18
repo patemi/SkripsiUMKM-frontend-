@@ -44,7 +44,7 @@ export default function UserHomePage() {
   const [selectedKategori, setSelectedKategori] = useState('Semua');
   const [searchQuery, setSearchQuery] = useState('');
   const [userData, setUserData] = useState<any>(null);
-  const [userLocation, setUserLocation] = useState<{lat: number; lng: number} | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [sortByDistance, setSortByDistance] = useState(false);
   const [filterOpenNow, setFilterOpenNow] = useState(false);
   const [loadingLocation, setLoadingLocation] = useState(false);
@@ -61,10 +61,16 @@ export default function UserHomePage() {
   const [showLocationPermission, setShowLocationPermission] = useState(false);
   const [showLocationSuccess, setShowLocationSuccess] = useState(false);
   const [showLocationError, setShowLocationError] = useState(false);
-  const [detectedCoords, setDetectedCoords] = useState<{lat: number; lng: number} | null>(null);
+  const [detectedCoords, setDetectedCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState('');
   const [viewMode, setViewMode] = useState<'cards' | 'map'>('cards'); // 'cards' or 'map'
-  
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const itemsPerPage = 10;
+
   const resultsRef = useRef<HTMLDivElement>(null);
   const myUMKMScrollRef = useRef<HTMLDivElement>(null);
 
@@ -132,7 +138,7 @@ export default function UserHomePage() {
   useEffect(() => {
     const token = localStorage.getItem('userToken');
     const userData = localStorage.getItem('userData');
-    
+
     if (!token || !userData) {
       console.log('⚠️ No token or userData found, redirecting to login...');
       router.push('/user/login');
@@ -140,7 +146,7 @@ export default function UserHomePage() {
     }
 
     console.log('✅ User authenticated, starting activity tracking...');
-    
+
     // Start activity tracking untuk user
     startActivityTracking();
     setupActivityListeners();
@@ -148,12 +154,12 @@ export default function UserHomePage() {
     // Check if should open UMKM Saya modal from URL params
     const urlParams = new URLSearchParams(window.location.search);
     const shouldOpenModal = urlParams.get('openMyUMKM');
-    
+
     if (shouldOpenModal === 'true') {
       console.log('✅ Detected openMyUMKM param, opening modal...');
       // Remove param from URL without reload
       window.history.replaceState({}, '', '/user/home');
-      
+
       // Open modal AND load data simultaneously
       setShowMyUMKM(true);
       fetchMyUMKM();
@@ -170,7 +176,7 @@ export default function UserHomePage() {
     const savedKategori = sessionStorage.getItem('filterKategori');
     const savedSearch = sessionStorage.getItem('filterSearch');
     const savedSortDistance = sessionStorage.getItem('filterSortDistance');
-    
+
     if (savedKategori) {
       setSelectedKategori(savedKategori);
       // Auto-open filter if there's a saved filter
@@ -188,24 +194,46 @@ export default function UserHomePage() {
   }, []);
 
   useEffect(() => {
-    // Get user data from localStorage
-    const userDataStr = localStorage.getItem('userData');
-    if (userDataStr) {
-      try {
-        const data = JSON.parse(userDataStr);
-        // Normalize _id from id (backend returns 'id' not '_id')
-        if (data.id && !data._id) {
-          data._id = data.id;
+    // Function to load user data from localStorage
+    const loadUserData = () => {
+      const userDataStr = localStorage.getItem('userData');
+      if (userDataStr) {
+        try {
+          const data = JSON.parse(userDataStr);
+          // Normalize _id from id (backend returns 'id' not '_id')
+          if (data.id && !data._id) {
+            data._id = data.id;
+          }
+          setUserData(data);
+          console.log('✅ User data loaded:', data);
+          console.log('✅ User ID:', data._id || data.id);
+        } catch (e) {
+          console.error('Error parsing user data:', e);
         }
-        setUserData(data);
-        console.log('✅ User data loaded:', data);
-        console.log('✅ User ID:', data._id || data.id);
-      } catch (e) {
-        console.error('Error parsing user data:', e);
+      } else {
+        console.warn('⚠️ No user data found in localStorage');
       }
-    } else {
-      console.warn('⚠️ No user data found in localStorage');
-    }
+    };
+
+    // Initial load
+    loadUserData();
+
+    // Listen for profile updates from profile page
+    const handleProfileUpdate = () => {
+      console.log('🔄 Profile updated, refreshing user data...');
+      loadUserData();
+    };
+
+    window.addEventListener('userProfileUpdated', handleProfileUpdate);
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'userData' && e.newValue) {
+        loadUserData();
+      }
+    });
+
+    return () => {
+      window.removeEventListener('userProfileUpdated', handleProfileUpdate);
+    };
   }, []);
 
   useEffect(() => {
@@ -252,7 +280,7 @@ export default function UserHomePage() {
     console.log('searchQuery:', searchQuery);
     console.log('sortByDistance:', sortByDistance);
     console.log('filterOpenNow:', filterOpenNow);
-    
+
     let filtered = [...umkmList];
 
     if (selectedKategori !== 'Semua') {
@@ -261,10 +289,9 @@ export default function UserHomePage() {
     }
 
     if (searchQuery.trim()) {
+      // Hanya search berdasarkan nama UMKM saja
       filtered = filtered.filter(umkm =>
-        umkm.nama_umkm.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        umkm.deskripsi.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        umkm.alamat.toLowerCase().includes(searchQuery.toLowerCase())
+        umkm.nama_umkm.toLowerCase().includes(searchQuery.toLowerCase())
       );
       console.log('After search filter:', filtered.length);
     }
@@ -278,7 +305,7 @@ export default function UserHomePage() {
     // Sort by distance if user location is available
     if (sortByDistance && userLocation) {
       console.log('🔍 Sorting by distance from:', userLocation);
-      
+
       filtered = filtered
         .map(umkm => {
           const umkmCoords = extractCoordinates(umkm.maps || '');
@@ -296,7 +323,7 @@ export default function UserHomePage() {
         })
         .filter(umkm => (umkm as any).distance <= 20) // Only show UMKM within 20km radius
         .sort((a, b) => (a.distance || 999999) - (b.distance || 999999));
-      
+
       console.log('After distance sort, showing:', filtered.length, 'UMKM within 20km radius');
     }
 
@@ -304,38 +331,50 @@ export default function UserHomePage() {
     setFilteredUMKM(filtered);
   }, [selectedKategori, searchQuery, umkmList, sortByDistance, userLocation, filterOpenNow]);
 
-  const fetchUMKM = async () => {
-    console.log('🔄 Starting to fetch UMKM data...');
+  const fetchUMKM = async (page: number = 1, kategori: string = 'Semua') => {
+    console.log('🔄 Starting to fetch UMKM data... Page:', page, 'Kategori:', kategori);
     setLoading(true);
     setError(null);
-    
+
     try {
-      const url = 'http://localhost:5000/api/umkm?status=approved';
+      // Build URL with kategori parameter
+      let url = `http://localhost:5000/api/umkm?status=approved&page=${page}&limit=${itemsPerPage}`;
+      if (kategori && kategori !== 'Semua') {
+        url += `&kategori=${encodeURIComponent(kategori)}`;
+      }
       console.log('📡 Fetching from:', url);
-      
+
       const res = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
       });
-      
+
       console.log('📊 Response status:', res.status, res.statusText);
-      
+
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
-      
+
       const response = await res.json();
       console.log('✅ Response received:', response);
       console.log('✅ Data is array?', Array.isArray(response.data));
       console.log('✅ Data length:', response.data?.length);
-      
+
       if (response.success && Array.isArray(response.data)) {
         console.log('✅ Setting', response.data.length, 'UMKM items');
         const data = response.data;
         setUmkmList(data);
         setFilteredUMKM(data);
+
+        // Set pagination info from backend
+        if (response.pagination) {
+          setCurrentPage(response.pagination.currentPage);
+          setTotalPages(response.pagination.totalPages);
+          setTotalItems(response.pagination.totalItems);
+        }
+
         console.log('✅ State updated successfully');
       } else {
         console.error('❌ Invalid response format:', response);
@@ -351,7 +390,7 @@ export default function UserHomePage() {
     } finally {
       console.log('✅ Fetch complete, setting loading to false');
       setLoading(false);
-      
+
       // Restore scroll position after data is loaded
       const savedScrollPosition = sessionStorage.getItem('homeScrollPosition');
       if (savedScrollPosition) {
@@ -371,15 +410,15 @@ export default function UserHomePage() {
     // Clear all user data
     localStorage.removeItem('userToken');
     localStorage.removeItem('userData');
-    
+
     // Clear filter and scroll states
     sessionStorage.removeItem('filterKategori');
     sessionStorage.removeItem('filterSearch');
     sessionStorage.removeItem('filterSortDistance');
     sessionStorage.removeItem('homeScrollPosition');
-    
+
     console.log('✅ User logged out successfully');
-    
+
     // Redirect to landing page
     router.push('/');
   };
@@ -389,39 +428,39 @@ export default function UserHomePage() {
     const userDataStr = localStorage.getItem('userData');
     const currentUserData = userDataStr ? JSON.parse(userDataStr) : null;
     const userId = currentUserData?._id || currentUserData?.id;
-    
+
     if (!userId) {
       console.log('❌ No user ID found');
       return;
     }
-    
+
     setLoadingMyUMKM(true);
     try {
       const userToken = localStorage.getItem('userToken');
       console.log('🔍 Fetching UMKM for user ID:', userId);
       console.log('🔍 User name:', currentUserData.nama_user);
-      
+
       const res = await fetch(`${API_URL}/umkm`, {
         headers: {
           'Authorization': userToken ? `Bearer ${userToken}` : '',
         }
       });
       const response = await res.json();
-      
+
       console.log('📦 Total UMKM from API:', response.data?.length);
-      
+
       if (response.success && Array.isArray(response.data)) {
         // Log semua user_id untuk debugging
         response.data.forEach((item: any, index: number) => {
           console.log(`UMKM ${index + 1}: ${item.nama_umkm} - user_id:`, item.user_id, '- nama_user:', item.nama_user);
         });
-        
+
         // Filter UMKM yang ditambahkan oleh user ini
         // Compare as string karena ObjectId dari MongoDB
         const userUMKM = response.data.filter((item: any) => {
           // Handle berbagai format user_id
           let itemUserId;
-          
+
           if (typeof item.user_id === 'object' && item.user_id !== null) {
             // Jika user_id adalah object (populated)
             itemUserId = item.user_id._id || item.user_id.id || item.user_id;
@@ -429,26 +468,26 @@ export default function UserHomePage() {
             // Jika user_id adalah string
             itemUserId = item.user_id;
           }
-          
+
           const currentUserId = userId;
           const match = String(itemUserId) === String(currentUserId);
-          
+
           if (match) {
             console.log('✅ Match found:', item.nama_umkm, '- Status:', item.status);
           }
-          
+
           return match;
         });
-        
+
         console.log('📊 Filtered user UMKM:', userUMKM.length, 'items');
         console.log('📊 Breakdown:', {
           approved: userUMKM.filter((u: UMKM) => u.status === 'approved').length,
           pending: userUMKM.filter((u: UMKM) => u.status === 'pending').length,
           rejected: userUMKM.filter((u: UMKM) => u.status === 'rejected').length
         });
-        
+
         setMyUMKM(userUMKM);
-        
+
         // Restore scroll position after data is set
         setTimeout(() => {
           const savedScrollPos = sessionStorage.getItem('myUMKMScrollPosition');
@@ -482,7 +521,7 @@ export default function UserHomePage() {
   const confirmDelete = async () => {
     setShowDeleteConfirm(false);
     setDeletingUMKM(true);
-    
+
     try {
       const token = localStorage.getItem('userToken');
       const deletePromises = selectedUMKM.map(umkmId =>
@@ -493,10 +532,10 @@ export default function UserHomePage() {
           },
         })
       );
-      
+
       const results = await Promise.all(deletePromises);
       const successCount = results.filter(r => r.ok).length;
-      
+
       if (successCount > 0) {
         setDeleteMessage(`Berhasil menghapus ${successCount} UMKM`);
         setShowDeleteSuccess(true);
@@ -519,8 +558,8 @@ export default function UserHomePage() {
 
   const scrollToResults = () => {
     setTimeout(() => {
-      resultsRef.current?.scrollIntoView({ 
-        behavior: 'smooth', 
+      resultsRef.current?.scrollIntoView({
+        behavior: 'smooth',
         block: 'start'
       });
     }, 100);
@@ -543,17 +582,17 @@ export default function UserHomePage() {
     const R = 6371; // Earth's radius in km
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLng/2) * Math.sin(dLng/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
 
-  const extractCoordinates = (mapsUrl: string): {lat: number; lng: number} | null => {
+  const extractCoordinates = (mapsUrl: string): { lat: number; lng: number } | null => {
     if (!mapsUrl) return null;
-    
+
     // Try to extract coordinates from Google Maps URL
     // Format: https://maps.google.com/?q=-7.5678,110.1234 or various other formats
     const patterns = [
@@ -561,7 +600,7 @@ export default function UserHomePage() {
       /q=(-?\d+\.\d+),(-?\d+\.\d+)/, // q=lat,lng format
       /ll=(-?\d+\.\d+),(-?\d+\.\d+)/, // ll=lat,lng format
     ];
-    
+
     for (const pattern of patterns) {
       const match = mapsUrl.match(pattern);
       if (match) {
@@ -573,14 +612,33 @@ export default function UserHomePage() {
         }
       }
     }
-    
+
+    return null;
+  };
+
+  // Helper to get coordinates from UMKM (new lokasi field or legacy maps URL)
+  const getUmkmCoordinates = (umkm: any): { lat: number; lng: number } | null => {
+    // Priority 1: Use lokasi field if available (new format from backend)
+    if (umkm.lokasi && umkm.lokasi.latitude && umkm.lokasi.longitude) {
+      return {
+        lat: umkm.lokasi.latitude,
+        lng: umkm.lokasi.longitude
+      };
+    }
+
+    // Priority 2: Extract from Google Maps URL (legacy format)
+    const mapsUrl = umkm.maps || umkm.linkMaps;
+    if (mapsUrl) {
+      return extractCoordinates(mapsUrl);
+    }
+
     return null;
   };
 
   const getUserLocationWithModal = async () => {
     setLoadingLocation(true);
     console.log('📍 Requesting user location...');
-    
+
     if (!navigator.geolocation) {
       console.error('❌ Geolocation not supported');
       setLocationError('Browser Anda tidak mendukung geolocation');
@@ -598,7 +656,7 @@ export default function UserHomePage() {
         setSortByDistance(true);
         setLoadingLocation(false);
         setShowLocationSuccess(true);
-        
+
         // Auto-close success modal after 3 seconds
         setTimeout(() => {
           setShowLocationSuccess(false);
@@ -607,7 +665,7 @@ export default function UserHomePage() {
       (error) => {
         console.error('❌ Error getting location:', error.message);
         let errorMsg = 'Tidak dapat mengakses lokasi Anda';
-        
+
         if (error.code === error.PERMISSION_DENIED) {
           errorMsg = 'Izin akses lokasi ditolak. Silakan ubah pengaturan browser Anda.';
         } else if (error.code === error.POSITION_UNAVAILABLE) {
@@ -615,7 +673,7 @@ export default function UserHomePage() {
         } else if (error.code === error.TIMEOUT) {
           errorMsg = 'Permintaan lokasi timeout. Silakan coba lagi.';
         }
-        
+
         setLocationError(errorMsg);
         setShowLocationError(true);
         setLoadingLocation(false);
@@ -695,7 +753,7 @@ export default function UserHomePage() {
               <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 mb-6 shadow-lg">
                 <FiAlertTriangle className="h-12 w-12 text-white animate-pulse" strokeWidth={2.5} />
               </div>
-              
+
               <h3 className="text-3xl font-bold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent mb-3">
                 Konfirmasi Hapus
               </h3>
@@ -705,7 +763,7 @@ export default function UserHomePage() {
               <p className="text-gray-500 mb-8 text-sm">
                 Tindakan ini tidak dapat dibatalkan dan semua data UMKM akan dihapus permanen.
               </p>
-              
+
               <div className="flex space-x-3">
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
@@ -733,14 +791,14 @@ export default function UserHomePage() {
               <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-gradient-to-br from-green-400 to-green-600 mb-6 shadow-lg">
                 <FiCheckCircle className="h-12 w-12 text-white animate-scaleIn" strokeWidth={2.5} />
               </div>
-              
+
               <h3 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent mb-3">
                 Berhasil Dihapus!
               </h3>
               <p className="text-gray-600 mb-8 text-lg">
                 {deleteMessage}
               </p>
-              
+
               <button
                 onClick={() => setShowDeleteSuccess(false)}
                 className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 px-6 rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
@@ -760,14 +818,14 @@ export default function UserHomePage() {
               <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-gradient-to-br from-red-400 to-red-600 mb-6 shadow-lg">
                 <FiXCircle className="h-12 w-12 text-white animate-scaleIn" strokeWidth={2.5} />
               </div>
-              
+
               <h3 className="text-3xl font-bold bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent mb-3">
                 Gagal Menghapus
               </h3>
               <p className="text-gray-600 mb-8 text-base leading-relaxed">
                 {deleteMessage}
               </p>
-              
+
               <button
                 onClick={() => setShowDeleteError(false)}
                 className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-4 px-6 rounded-xl font-semibold hover:from-red-700 hover:to-red-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
@@ -792,12 +850,12 @@ export default function UserHomePage() {
                 </div>
                 <h3 className="text-xl font-bold text-center">Aktifkan Lokasi</h3>
               </div>
-              
+
               <div className="p-6">
                 <p className="text-gray-700 text-center mb-6">
                   Izinkan akses lokasi untuk menemukan UMKM terdekat dengan Anda
                 </p>
-                
+
                 <div className="flex gap-3">
                   <button
                     onClick={() => setShowLocationPermission(false)}
@@ -831,12 +889,12 @@ export default function UserHomePage() {
                 </div>
                 <h3 className="text-xl font-bold text-center">Lokasi Terdeteksi</h3>
               </div>
-              
+
               <div className="p-6">
                 <p className="text-gray-700 text-center mb-4">
                   Lokasi Anda telah terdeteksi dengan sukses
                 </p>
-                
+
                 {detectedCoords && (
                   <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-4 rounded-lg mb-6">
                     <p className="text-sm text-gray-600 font-medium mb-2">Koordinat Anda:</p>
@@ -845,7 +903,7 @@ export default function UserHomePage() {
                     </p>
                   </div>
                 )}
-                
+
                 <p className="text-sm text-gray-500 text-center">
                   Menampilkan UMKM dalam radius 20km dari lokasi Anda
                 </p>
@@ -868,12 +926,12 @@ export default function UserHomePage() {
                 </div>
                 <h3 className="text-xl font-bold text-center">Lokasi Gagal Dideteksi</h3>
               </div>
-              
+
               <div className="p-6">
                 <p className="text-gray-700 text-center mb-6">
                   {locationError}
                 </p>
-                
+
                 <button
                   onClick={() => setShowLocationError(false)}
                   className="w-full px-4 py-2 bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-lg hover:shadow-lg transition"
@@ -908,7 +966,7 @@ export default function UserHomePage() {
                 </button>
               </div>
             </div>
-            
+
             <div ref={myUMKMScrollRef} className="flex-1 overflow-y-auto p-3 sm:p-6 bg-gray-50">
               {loadingMyUMKM ? (
                 <div className="text-center py-12">
@@ -939,16 +997,15 @@ export default function UserHomePage() {
                           setDeleteMode(!deleteMode);
                           setSelectedUMKM([]);
                         }}
-                        className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-2 text-sm sm:text-base ${
-                          deleteMode 
-                            ? 'bg-red-600 text-white hover:bg-red-700' 
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
+                        className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-2 text-sm sm:text-base ${deleteMode
+                          ? 'bg-red-600 text-white hover:bg-red-700'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
                       >
                         <FiTrash2 size={16} />
                         <span>{deleteMode ? 'Batal Pilih' : 'Pilih & Hapus'}</span>
                       </button>
-                      
+
                       {deleteMode && (
                         <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 flex-1">
                           <button
@@ -963,7 +1020,7 @@ export default function UserHomePage() {
                           >
                             {selectedUMKM.length === myUMKM.length ? 'Hapus Semua Pilihan' : 'Pilih Semua'}
                           </button>
-                          
+
                           {selectedUMKM.length > 0 && (
                             <button
                               onClick={handleDeleteSelected}
@@ -997,7 +1054,7 @@ export default function UserHomePage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs sm:text-sm text-blue-800">
-                          <span className="font-semibold">Total {myUMKM.length} UMKM</span> - 
+                          <span className="font-semibold">Total {myUMKM.length} UMKM</span> -
                           <span className="ml-1 sm:ml-2 text-green-700">{myUMKM.filter(u => u.status === 'approved').length} Disetujui</span>,
                           <span className="ml-1 sm:ml-2 text-yellow-700">{myUMKM.filter(u => u.status === 'pending').length} Pending</span>,
                           <span className="ml-1 sm:ml-2 text-red-700">{myUMKM.filter(u => u.status === 'rejected').length} Ditolak</span>
@@ -1007,13 +1064,12 @@ export default function UserHomePage() {
                   </div>
 
                   {myUMKM.map((umkm) => (
-                    <div 
-                      key={umkm._id} 
-                      className={`bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-md hover:shadow-lg transition-all border-2 ${
-                        deleteMode && selectedUMKM.includes(umkm._id)
-                          ? 'border-red-500 bg-red-50'
-                          : 'border-gray-100 hover:border-blue-200'
-                      }`}
+                    <div
+                      key={umkm._id}
+                      className={`bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-md hover:shadow-lg transition-all border-2 ${deleteMode && selectedUMKM.includes(umkm._id)
+                        ? 'border-red-500 bg-red-50'
+                        : 'border-gray-100 hover:border-blue-200'
+                        }`}
                     >
                       <div className="flex items-start gap-2 sm:gap-4">
                         {/* Checkbox for Delete Mode */}
@@ -1033,7 +1089,7 @@ export default function UserHomePage() {
                             />
                           </div>
                         )}
-                        
+
                         {/* Foto */}
                         <div className="flex-shrink-0">
                           {umkm.foto_umkm && umkm.foto_umkm.length > 0 ? (
@@ -1060,7 +1116,7 @@ export default function UserHomePage() {
                                 {umkm.kategori}
                               </span>
                             </div>
-                            
+
                             {/* Status Badge */}
                             <div className="flex-shrink-0">
                               {umkm.status === 'approved' && (
@@ -1092,7 +1148,7 @@ export default function UserHomePage() {
                               )}
                             </div>
                           </div>
-                          
+
                           {/* Info Grid */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 mb-3 sm:mb-4">
                             <div className="flex items-center text-xs sm:text-sm text-gray-600">
@@ -1110,27 +1166,27 @@ export default function UserHomePage() {
 
                           {/* Action Buttons */}
                           <div className="flex items-center">{umkm.status === 'approved' && (
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // Save scroll position of modal
-                                  if (myUMKMScrollRef.current) {
-                                    sessionStorage.setItem('myUMKMScrollPosition', myUMKMScrollRef.current.scrollTop.toString());
-                                  }
-                                  // Save scroll position and filter state
-                                  sessionStorage.setItem('homeScrollPosition', window.scrollY.toString());
-                                  sessionStorage.setItem('filterKategori', selectedKategori);
-                                  sessionStorage.setItem('filterSearch', searchQuery);
-                                  sessionStorage.setItem('filterSortDistance', sortByDistance.toString());
-                                  // Navigate with query parameter
-                                  router.push(`/user/umkm/${umkm._id}?from=myumkm`);
-                                }}
-                                className="flex-1 w-full px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-sm font-medium flex items-center justify-center gap-1.5 sm:gap-2"
-                              >
-                                <FiEye className="" size={14} />
-                                Lihat Detail
-                              </button>
-                            )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Save scroll position of modal
+                                if (myUMKMScrollRef.current) {
+                                  sessionStorage.setItem('myUMKMScrollPosition', myUMKMScrollRef.current.scrollTop.toString());
+                                }
+                                // Save scroll position and filter state
+                                sessionStorage.setItem('homeScrollPosition', window.scrollY.toString());
+                                sessionStorage.setItem('filterKategori', selectedKategori);
+                                sessionStorage.setItem('filterSearch', searchQuery);
+                                sessionStorage.setItem('filterSortDistance', sortByDistance.toString());
+                                // Navigate with query parameter
+                                router.push(`/user/umkm/${umkm._id}?from=myumkm`);
+                              }}
+                              className="flex-1 w-full px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-sm font-medium flex items-center justify-center gap-1.5 sm:gap-2"
+                            >
+                              <FiEye className="" size={14} />
+                              Lihat Detail
+                            </button>
+                          )}
                             {umkm.status === 'pending' && (
                               <div className="flex-1 px-3 sm:px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-xs sm:text-sm font-medium text-center">
                                 Menunggu Verifikasi Admin
@@ -1174,8 +1230,8 @@ export default function UserHomePage() {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-4 lg:space-x-6">
-              <Link 
-                href="/user/umkm/create" 
+              <Link
+                href="/user/umkm/create"
                 className="flex items-center gap-1 px-3 py-2 text-base text-gray-700 hover:text-blue-600 hover:bg-blue-50 md:hover:bg-transparent rounded-lg transition-colors"
               >
                 <span>Tambah UMKM</span>
@@ -1231,7 +1287,7 @@ export default function UserHomePage() {
           {mobileMenuOpen && (
             <div className="md:hidden mt-4 pb-4 border-t pt-4 animate-slideDown">
               <nav className="flex flex-col space-y-2">
-                <Link 
+                <Link
                   href="/user/umkm/create"
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -1324,11 +1380,10 @@ export default function UserHomePage() {
                 </button>
                 <button
                   onClick={() => setShowFilter(!showFilter)}
-                  className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-3.5 md:py-3 rounded-lg text-sm md:text-sm font-medium transition-all whitespace-nowrap ${
-                    showFilter
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-2 md:border border-gray-200'
-                  }`}
+                  className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-3.5 md:py-3 rounded-lg text-sm md:text-sm font-medium transition-all whitespace-nowrap ${showFilter
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-2 md:border border-gray-200'
+                    }`}
                 >
                   <FiFilter size={16} />
                   <span>Filter</span>
@@ -1356,14 +1411,15 @@ export default function UserHomePage() {
                         key={kategori}
                         onClick={() => {
                           setSelectedKategori(kategori);
+                          setCurrentPage(1); // Reset page ke 1 saat kategori berubah
                           sessionStorage.setItem('filterKategori', kategori);
+                          fetchUMKM(1, kategori); // Fetch data per kategori dari backend
                           scrollToResults();
                         }}
-                        className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                          selectedKategori === kategori
-                            ? 'bg-blue-600 text-white shadow-md'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${selectedKategori === kategori
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
                       >
                         {kategori}
                       </button>
@@ -1382,11 +1438,10 @@ export default function UserHomePage() {
                       setFilterOpenNow(!filterOpenNow);
                       scrollToResults();
                     }}
-                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      filterOpenNow
-                        ? 'bg-green-600 text-white shadow-md'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
-                    }`}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${filterOpenNow
+                      ? 'bg-green-600 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
+                      }`}
                   >
                     {filterOpenNow ? (
                       <>
@@ -1415,11 +1470,10 @@ export default function UserHomePage() {
                         scrollToResults();
                       }}
                       disabled={loadingLocation}
-                      className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                        sortByDistance && userLocation
-                          ? 'bg-green-600 text-white'
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
-                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${sortByDistance && userLocation
+                        ? 'bg-green-600 text-white'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       {loadingLocation ? (
                         <>
@@ -1471,11 +1525,10 @@ export default function UserHomePage() {
           <div className="bg-white rounded-xl shadow-md p-2 inline-flex gap-2">
             <button
               onClick={() => setViewMode('cards')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-                viewMode === 'cards'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${viewMode === 'cards'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-100'
+                }`}
             >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
@@ -1484,11 +1537,10 @@ export default function UserHomePage() {
             </button>
             <button
               onClick={() => setViewMode('map')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-                viewMode === 'map'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${viewMode === 'map'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-100'
+                }`}
             >
               <FiMapPin className="w-5 h-5" />
               <span>Map</span>
@@ -1502,8 +1554,8 @@ export default function UserHomePage() {
             <div>
               <FiMapPin className="mx-auto text-gray-300 mb-4" size={80} />
               <h3 className="text-2xl font-semibold text-gray-700 mb-2">
-                {sortByDistance && userLocation 
-                  ? 'Tidak ada UMKM dengan lokasi terdekat' 
+                {sortByDistance && userLocation
+                  ? 'Tidak ada UMKM dengan lokasi terdekat'
                   : 'Tidak ada UMKM ditemukan'}
               </h3>
               <p className="text-gray-500">
@@ -1538,7 +1590,7 @@ export default function UserHomePage() {
             <Map
               markers={filteredUMKM
                 .map((umkm) => {
-                  const coords = extractCoordinates(umkm.maps || '');
+                  const coords = getUmkmCoordinates(umkm);
                   if (!coords) return null;
                   return {
                     id: umkm._id,
@@ -1598,7 +1650,7 @@ export default function UserHomePage() {
                         </span>
                       </div>
                     )}
-                    
+
                     {/* Status Badge */}
                     <div className="absolute top-4 right-4">
                       {isOpen(umkm.jam_operasional) ? (
@@ -1695,6 +1747,94 @@ export default function UserHomePage() {
           </div>
         )}
       </section>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="container mx-auto px-4 pb-12">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white rounded-xl p-4 shadow-lg">
+            {/* Info */}
+            <div className="text-sm text-gray-600">
+              Menampilkan <span className="font-semibold">{(currentPage - 1) * itemsPerPage + 1}</span> -{' '}
+              <span className="font-semibold">{Math.min(currentPage * itemsPerPage, totalItems)}</span>{' '}
+              dari <span className="font-semibold">{totalItems}</span> UMKM
+            </div>
+
+            {/* Navigation */}
+            <div className="flex items-center gap-2">
+              {/* First */}
+              <button
+                onClick={() => {
+                  setCurrentPage(1);
+                  fetchUMKM(1, selectedKategori);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                disabled={currentPage === 1}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${currentPage === 1
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-600'
+                  }`}
+              >
+                ⏮️ Awal
+              </button>
+
+              {/* Previous */}
+              <button
+                onClick={() => {
+                  const newPage = currentPage - 1;
+                  setCurrentPage(newPage);
+                  fetchUMKM(newPage, selectedKategori);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                disabled={currentPage === 1}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${currentPage === 1
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-600'
+                  }`}
+              >
+                ◀️ Sebelumnya
+              </button>
+
+              {/* Current Page Info */}
+              <div className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold">
+                {currentPage} / {totalPages}
+              </div>
+
+              {/* Next */}
+              <button
+                onClick={() => {
+                  const newPage = currentPage + 1;
+                  setCurrentPage(newPage);
+                  fetchUMKM(newPage, selectedKategori);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                disabled={currentPage >= totalPages}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${currentPage >= totalPages
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-600'
+                  }`}
+              >
+                Selanjutnya ▶️
+              </button>
+
+              {/* Last */}
+              <button
+                onClick={() => {
+                  setCurrentPage(totalPages);
+                  fetchUMKM(totalPages, selectedKategori);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                disabled={currentPage >= totalPages}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${currentPage >= totalPages
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-600'
+                  }`}
+              >
+                Akhir ⏭️
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="bg-gray-900 text-white mt-20">

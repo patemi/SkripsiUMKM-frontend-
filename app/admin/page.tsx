@@ -13,7 +13,7 @@ export default function AdminDashboard() {
   const [allUMKM, setAllUMKM] = useState<UMKM[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Extract coordinates from Google Maps URL
+  // Extract coordinates from Google Maps URL or lokasi field
   const extractCoordinates = (mapsUrl: string): { lat: number; lng: number } | null => {
     if (!mapsUrl) return null;
 
@@ -21,6 +21,9 @@ export default function AdminDashboard() {
       /@(-?\d+\.\d+),(-?\d+\.\d+)/, // @lat,lng format
       /q=(-?\d+\.\d+),(-?\d+\.\d+)/, // q=lat,lng format
       /ll=(-?\d+\.\d+),(-?\d+\.\d+)/, // ll=lat,lng format
+      /place\/.*\/@(-?\d+\.\d*),(-?\d+\.\d*)/, // place/@lat,lng format
+      /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/, // !3d lat !4d lng format
+      /center=(-?\d+\.\d+),(-?\d+\.\d+)/, // center=lat,lng format
     ];
 
     for (const pattern of patterns) {
@@ -36,6 +39,20 @@ export default function AdminDashboard() {
     return null;
   };
 
+  // Get coordinates from UMKM (support lokasi field atau maps URL)
+  const getUmkmCoordinates = (umkm: any): { lat: number; lng: number } | null => {
+    // Priority 1: Use lokasi field if available
+    if (umkm.lokasi?.latitude && umkm.lokasi?.longitude) {
+      return { lat: umkm.lokasi.latitude, lng: umkm.lokasi.longitude };
+    }
+    // Priority 2: Extract from Google Maps URL
+    const mapsUrl = umkm.linkMaps || umkm.maps || '';
+    if (mapsUrl) {
+      return extractCoordinates(mapsUrl);
+    }
+    return null;
+  };
+
   useEffect(() => {
     // Langsung load data - auth sudah dicek di layout
     const loadData = async () => {
@@ -47,7 +64,7 @@ export default function AdminDashboard() {
   const fetchDashboardData = async () => {
     try {
       const token = localStorage.getItem('token');
-      
+
       // Fetch UMKM statistics
       const statsRes = await fetch(`${API_URL}/umkm/stats/overview`, {
         headers: {
@@ -55,7 +72,7 @@ export default function AdminDashboard() {
         }
       });
       const statsData = await statsRes.json();
-      
+
       // Fetch top UMKM - hanya yang approved
       const topRes = await fetch(`${API_URL}/umkm/top?limit=5`, {
         headers: {
@@ -63,7 +80,7 @@ export default function AdminDashboard() {
         }
       });
       const topData = await topRes.json();
-      
+
       // Fetch user stats
       const userRes = await fetch(`${API_URL}/user/stats`, {
         headers: {
@@ -71,7 +88,7 @@ export default function AdminDashboard() {
         }
       });
       const userData = await userRes.json();
-      
+
       if (statsData.success) {
         setStatistics({
           totalUMKM: statsData.data.totalUMKM,
@@ -79,7 +96,7 @@ export default function AdminDashboard() {
           umkmPerKategori: statsData.data.umkmPerKategori,
         });
       }
-      
+
       if (topData.success && topData.data) {
         const mappedTop = topData.data.map((item: any) => ({
           id: item._id,
@@ -106,7 +123,7 @@ export default function AdminDashboard() {
         }
       });
       const allData = await allRes.json();
-      
+
       if (allData.success && allData.data) {
         const mappedAll = allData.data.map((item: any) => ({
           id: item._id,
@@ -115,6 +132,7 @@ export default function AdminDashboard() {
           deskripsi: item.deskripsi,
           alamat: item.alamat,
           linkMaps: item.maps || '',
+          lokasi: item.lokasi || null, // Include lokasi field
           foto: item.foto_umkm || [],
           metodePembayaran: item.pembayaran || [],
           jamOperasional: item.jam_operasional || {},
@@ -194,7 +212,7 @@ export default function AdminDashboard() {
           <h2 className="text-lg sm:text-xl font-bold text-gray-900">Top 3 UMKM Paling Banyak Dilihat</h2>
           <FiTrendingUp className="text-orange-500" size={20} />
         </div>
-        
+
         <div className="space-y-2 sm:space-y-3">
           {topUMKM.length === 0 ? (
             <p className="text-gray-500 text-center py-8">Belum ada data UMKM</p>
@@ -233,13 +251,13 @@ export default function AdminDashboard() {
           <h2 className="text-lg sm:text-xl font-bold text-gray-900">Sebaran Lokasi UMKM</h2>
         </div>
         <p className="text-sm text-gray-600 mb-4">
-          Visualisasi lokasi {allUMKM.filter(u => u.linkMaps).length} UMKM yang memiliki data lokasi
+          Visualisasi lokasi {allUMKM.filter(u => getUmkmCoordinates(u) !== null).length} UMKM yang memiliki data lokasi
         </p>
-        {allUMKM.filter(u => u.linkMaps).length > 0 ? (
+        {allUMKM.filter(u => getUmkmCoordinates(u) !== null).length > 0 ? (
           <Map
             markers={allUMKM
               .map((umkm) => {
-                const coords = extractCoordinates(umkm.linkMaps || '');
+                const coords = getUmkmCoordinates(umkm);
                 if (!coords) return null;
                 return {
                   id: umkm.id,

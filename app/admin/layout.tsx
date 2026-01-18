@@ -3,11 +3,11 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { 
-  FiHome, 
-  FiShoppingBag, 
-  FiCheckCircle, 
-  FiFileText, 
+import {
+  FiHome,
+  FiShoppingBag,
+  FiCheckCircle,
+  FiFileText,
   FiTrendingUp,
   FiMenu,
   FiX,
@@ -40,27 +40,65 @@ export default function AdminLayout({
   const [adminName, setAdminName] = useState('Admin User');
 
   useEffect(() => {
-    // Immediate sync check - no async operations
-    const token = localStorage.getItem('token');
-    const adminData = localStorage.getItem('admin');
-    
-    // Quick check - jika tidak ada token, langsung redirect
-    if (!token || !adminData) {
-      clearAdminSession();
-      window.location.replace('/login');
-      return;
-    }
+    // Function to load admin data
+    const loadAdminData = () => {
+      const token = localStorage.getItem('token');
+      const adminData = localStorage.getItem('admin');
 
-    // Parse admin data
-    try {
-      const admin = JSON.parse(adminData);
-      setAdminName(admin.nama_admin || 'Admin User');
-      setIsAuthenticated(true);
-      setIsLoading(false);
-    } catch (error) {
-      clearAdminSession();
-      window.location.replace('/login');
-    }
+      // Quick check - jika tidak ada token, langsung redirect
+      if (!token || !adminData) {
+        clearAdminSession();
+        window.location.replace('/login');
+        return;
+      }
+
+      // Parse admin data
+      try {
+        const admin = JSON.parse(adminData);
+        setAdminName(admin.nama_admin || 'Admin User');
+        setIsAuthenticated(true);
+        setIsLoading(false);
+      } catch (error) {
+        clearAdminSession();
+        window.location.replace('/login');
+      }
+    };
+
+    // Initial load
+    loadAdminData();
+
+    // Listen for storage changes (when profile is updated)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'admin' && e.newValue) {
+        try {
+          const admin = JSON.parse(e.newValue);
+          setAdminName(admin.nama_admin || 'Admin User');
+        } catch (error) {
+          console.error('Error parsing admin data:', error);
+        }
+      }
+    };
+
+    // Custom event listener for same-tab updates
+    const handleAdminUpdate = () => {
+      const adminData = localStorage.getItem('admin');
+      if (adminData) {
+        try {
+          const admin = JSON.parse(adminData);
+          setAdminName(admin.nama_admin || 'Admin User');
+        } catch (error) {
+          console.error('Error parsing admin data:', error);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('adminProfileUpdated', handleAdminUpdate);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('adminProfileUpdated', handleAdminUpdate);
+    };
   }, []);
 
   const handleLogout = () => {
@@ -109,31 +147,29 @@ export default function AdminLayout({
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 z-40 w-64 h-screen transition-transform bg-white shadow-lg ${
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0`}
+        className={`fixed top-0 left-0 z-40 w-64 h-screen transition-transform bg-white shadow-lg ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          } lg:translate-x-0`}
       >
         <div className="h-full px-3 py-4 overflow-y-auto">
           <div className="mb-8 px-4 pt-4">
             <h1 className="text-2xl font-bold text-blue-600">UMKM Admin</h1>
             <p className="text-sm text-gray-600 mt-1">Dashboard Panel</p>
           </div>
-          
+
           <nav className="space-y-2">
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
-              
+
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   onClick={() => setIsSidebarOpen(false)}
-                  className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
-                    isActive
+                  className={`flex items-center px-4 py-3 rounded-lg transition-colors ${isActive
                       ? 'bg-blue-600 text-white'
                       : 'text-gray-700 hover:bg-gray-100'
-                  }`}
+                    }`}
                 >
                   <Icon className="mr-3" size={20} />
                   <span className="font-medium">{item.label}</span>

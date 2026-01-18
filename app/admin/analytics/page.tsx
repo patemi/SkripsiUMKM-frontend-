@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Line, Bar } from 'react-chartjs-2';
+import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -9,13 +9,16 @@ import {
   PointElement,
   LineElement,
   BarElement,
+  ArcElement,
   Title,
   Tooltip,
   Legend,
+  Filler,
 } from 'chart.js';
 import { Card } from '@/components/ui/Card';
 import { GrowthData } from '@/types';
 import { API_URL } from '@/lib/api';
+import { FiTrendingUp, FiTrendingDown, FiUsers, FiShoppingBag, FiActivity, FiRefreshCw, FiBarChart2 } from 'react-icons/fi';
 
 ChartJS.register(
   CategoryScale,
@@ -23,37 +26,28 @@ ChartJS.register(
   PointElement,
   LineElement,
   BarElement,
+  ArcElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  Filler
 );
 
 export default function AnalyticsPage() {
   const [growthData, setGrowthData] = useState<GrowthData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showScrollTop, setShowScrollTop] = useState(false);
-  const [rowsToShow, setRowsToShow] = useState(5);
+  const [rowsToShow, setRowsToShow] = useState(6);
 
   useEffect(() => {
-    const loadData = async () => {
-      await fetchGrowthData();
-    };
-    loadData();
-
-    // Scroll to top button handler
-    const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 300);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    fetchGrowthData();
   }, []);
 
   const fetchGrowthData = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
-      
+
       if (!token) {
         setError('Token tidak ditemukan. Silakan login kembali.');
         setLoading(false);
@@ -65,11 +59,11 @@ export default function AnalyticsPage() {
           'Authorization': `Bearer ${token}`,
         }
       });
-      
+
       const response = await res.json();
       if (response.success && response.data) {
         if (response.data.length === 0) {
-          setError('Belum ada data pertumbuhan. Tambahkan UMKM dan User terlebih dahulu.');
+          setError('Belum ada data pertumbuhan.');
         } else {
           setGrowthData(response.data);
           setError(null);
@@ -79,47 +73,54 @@ export default function AnalyticsPage() {
       }
     } catch (error) {
       console.error('Error fetching growth data:', error);
-      setError('Terjadi kesalahan saat mengambil data. Pastikan backend berjalan di http://localhost:5000');
+      setError('Terjadi kesalahan saat mengambil data.');
     } finally {
       setLoading(false);
     }
   };
 
+  // Calculate statistics
+  const latestData = growthData[growthData.length - 1];
+  const previousData = growthData.length > 1 ? growthData[growthData.length - 2] : null;
+
+  const umkmGrowth = previousData ? latestData?.umkm - previousData.umkm : 0;
+  const usersGrowth = previousData ? latestData?.users - previousData.users : 0;
+  const umkmGrowthPercent = previousData && previousData.umkm > 0
+    ? ((umkmGrowth / previousData.umkm) * 100).toFixed(1)
+    : '0';
+  const usersGrowthPercent = previousData && previousData.users > 0
+    ? ((usersGrowth / previousData.users) * 100).toFixed(1)
+    : '0';
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Memuat data pertumbuhan...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Memuat data analitik...</p>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (error || growthData.length === 0) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 p-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Analisis Pertumbuhan</h1>
-          <p className="text-gray-600 mt-1">Pertumbuhan UMKM dan User per bulan</p>
+          <h1 className="text-3xl font-bold text-gray-900">📊 Analisis Pertumbuhan</h1>
+          <p className="text-gray-600 mt-1">Dashboard analitik UMKM dan User</p>
         </div>
         <Card>
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <p className="text-xl font-semibold text-gray-900 mb-2">Error: {error}</p>
+          <div className="text-center py-16">
+            <FiBarChart2 className="mx-auto text-gray-300 mb-4" size={64} />
+            <p className="text-xl font-semibold text-gray-700 mb-2">{error || 'Belum Ada Data'}</p>
+            <p className="text-gray-500 mb-6">Tambahkan UMKM dan User untuk melihat analitik</p>
             <button
-              onClick={() => {
-                setLoading(true);
-                setError(null);
-                fetchGrowthData();
-              }}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              onClick={fetchGrowthData}
+              className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all inline-flex items-center gap-2 font-medium"
             >
-              Coba Lagi
+              <FiRefreshCw size={18} />
+              Refresh Data
             </button>
           </div>
         </Card>
@@ -127,207 +128,378 @@ export default function AnalyticsPage() {
     );
   }
 
-  if (growthData.length === 0) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Analisis Pertumbuhan</h1>
-          <p className="text-gray-600 mt-1">Pertumbuhan UMKM dan User per bulan</p>
-        </div>
-        <Card>
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-            </div>
-            <p className="text-xl font-semibold text-gray-900 mb-2">Belum Ada Data Pertumbuhan</p>
-            <p className="text-gray-600">Tambahkan UMKM dan User untuk melihat grafik pertumbuhan</p>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
+  // Chart configurations
   const lineChartData = {
     labels: growthData.map((d) => d.month),
     datasets: [
       {
-        label: 'Pertumbuhan UMKM',
-        data: growthData.map((data, index) => {
-          const prevData = index > 0 ? growthData[index - 1] : null;
-          return prevData ? data.umkm - prevData.umkm : 0;
-        }),
+        label: 'UMKM Terdaftar',
+        data: growthData.map((d) => d.umkm),
         borderColor: 'rgb(59, 130, 246)',
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        borderWidth: 3,
         tension: 0.4,
+        fill: true,
+        pointBackgroundColor: 'rgb(59, 130, 246)',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 8,
       },
       {
-        label: 'Pertumbuhan Users',
-        data: growthData.map((data, index) => {
-          const prevData = index > 0 ? growthData[index - 1] : null;
-          return prevData ? data.users - prevData.users : 0;
-        }),
-        borderColor: 'rgb(34, 197, 94)',
-        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+        label: 'Pengguna Aktif',
+        data: growthData.map((d) => d.users),
+        borderColor: 'rgb(16, 185, 129)',
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        borderWidth: 3,
         tension: 0.4,
+        fill: true,
+        pointBackgroundColor: 'rgb(16, 185, 129)',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 8,
       },
     ],
   };
 
   const barChartData = {
-    labels: growthData.map((d) => d.month),
+    labels: growthData.slice(-6).map((d) => d.month.split(' ')[0].slice(0, 3)),
     datasets: [
       {
         label: 'UMKM',
-        data: growthData.map((d) => d.umkm),
+        data: growthData.slice(-6).map((d) => d.umkm),
         backgroundColor: 'rgba(59, 130, 246, 0.8)',
+        borderRadius: 8,
+        borderSkipped: false,
       },
       {
         label: 'Users',
-        data: growthData.map((d) => d.users),
-        backgroundColor: 'rgba(34, 197, 94, 0.8)',
+        data: growthData.slice(-6).map((d) => d.users),
+        backgroundColor: 'rgba(16, 185, 129, 0.8)',
+        borderRadius: 8,
+        borderSkipped: false,
       },
     ],
   };
 
-  const chartOptions = {
+  // Calculate ratio for doughnut chart
+  const totalUMKM = latestData?.umkm || 0;
+  const totalUsers = latestData?.users || 0;
+  const doughnutData = {
+    labels: ['UMKM', 'Users'],
+    datasets: [
+      {
+        data: [totalUMKM, totalUsers],
+        backgroundColor: [
+          'rgba(59, 130, 246, 0.9)',
+          'rgba(16, 185, 129, 0.9)',
+        ],
+        borderColor: ['#fff', '#fff'],
+        borderWidth: 3,
+        hoverOffset: 10,
+      },
+    ],
+  };
+
+  const lineChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
         position: 'top' as const,
+        labels: {
+          usePointStyle: true,
+          padding: 20,
+          font: { size: 13, weight: 500 as const },
+        },
       },
-      title: {
-        display: false,
+      tooltip: {
+        backgroundColor: 'rgba(17, 24, 39, 0.95)',
+        titleFont: { size: 14, weight: 600 as const },
+        bodyFont: { size: 13 },
+        padding: 12,
+        cornerRadius: 8,
+        displayColors: true,
+        callbacks: {
+          label: function (context: any) {
+            return `${context.dataset.label}: ${context.parsed.y.toLocaleString()}`;
+          }
+        }
       },
     },
     scales: {
       y: {
         beginAtZero: true,
+        grid: { color: 'rgba(0, 0, 0, 0.05)' },
         ticks: {
-          stepSize: 1,
+          font: { size: 12 },
+          callback: function (value: any) {
+            return value.toLocaleString();
+          }
         },
+      },
+      x: {
+        grid: { display: false },
+        ticks: { font: { size: 12 } },
+      },
+    },
+    interaction: {
+      intersect: false,
+      mode: 'index' as const,
+    },
+  };
+
+  const barChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+        labels: {
+          usePointStyle: true,
+          padding: 15,
+          font: { size: 12 },
+        },
+      },
+      tooltip: {
+        backgroundColor: 'rgba(17, 24, 39, 0.95)',
+        padding: 10,
+        cornerRadius: 8,
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: { color: 'rgba(0, 0, 0, 0.05)' },
+      },
+      x: {
+        grid: { display: false },
       },
     },
   };
 
+  const doughnutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom' as const,
+        labels: {
+          usePointStyle: true,
+          padding: 20,
+          font: { size: 13 },
+        },
+      },
+      tooltip: {
+        backgroundColor: 'rgba(17, 24, 39, 0.95)',
+        padding: 12,
+        cornerRadius: 8,
+      },
+    },
+    cutout: '65%',
+  };
+
   return (
     <div className="space-y-6 p-4 lg:p-0">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Analisis Pertumbuhan</h1>
-          <p className="text-gray-600 mt-1 text-sm lg:text-base">Pertumbuhan UMKM dan User per bulan</p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <FiActivity className="text-blue-600" />
+            Analisis Pertumbuhan
+          </h1>
+          <p className="text-gray-500 mt-1">Dashboard analitik UMKM dan User per bulan</p>
         </div>
         <button
           onClick={fetchGrowthData}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-sm lg:text-base"
+          className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          Refresh Data
+          <FiRefreshCw size={18} />
+          Refresh
         </button>
       </div>
 
-      {/* Info Card */}
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total UMKM */}
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-5 text-white shadow-lg shadow-blue-500/30">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-100 text-sm font-medium">Total UMKM</p>
+              <p className="text-3xl font-bold mt-1">{totalUMKM.toLocaleString()}</p>
+            </div>
+            <div className="bg-white/20 p-3 rounded-xl">
+              <FiShoppingBag size={24} />
+            </div>
+          </div>
+          <div className="mt-3 flex items-center gap-1 text-sm">
+            {umkmGrowth >= 0 ? (
+              <FiTrendingUp className="text-green-300" />
+            ) : (
+              <FiTrendingDown className="text-red-300" />
+            )}
+            <span className={umkmGrowth >= 0 ? 'text-green-300' : 'text-red-300'}>
+              {umkmGrowth >= 0 ? '+' : ''}{umkmGrowth}
+            </span>
+            <span className="text-blue-200">dari bulan lalu</span>
+          </div>
+        </div>
+
+        {/* Total Users */}
+        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-5 text-white shadow-lg shadow-emerald-500/30">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-emerald-100 text-sm font-medium">Total Pengguna</p>
+              <p className="text-3xl font-bold mt-1">{totalUsers.toLocaleString()}</p>
+            </div>
+            <div className="bg-white/20 p-3 rounded-xl">
+              <FiUsers size={24} />
+            </div>
+          </div>
+          <div className="mt-3 flex items-center gap-1 text-sm">
+            {usersGrowth >= 0 ? (
+              <FiTrendingUp className="text-green-300" />
+            ) : (
+              <FiTrendingDown className="text-red-300" />
+            )}
+            <span className={usersGrowth >= 0 ? 'text-green-300' : 'text-red-300'}>
+              {usersGrowth >= 0 ? '+' : ''}{usersGrowth}
+            </span>
+            <span className="text-emerald-200">dari bulan lalu</span>
+          </div>
+        </div>
+
+        {/* Growth Rate UMKM */}
+        <div className="bg-white rounded-2xl p-5 shadow-lg border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-500 text-sm font-medium">Pertumbuhan UMKM</p>
+              <p className="text-3xl font-bold mt-1 text-gray-900">{umkmGrowthPercent}%</p>
+            </div>
+            <div className={`p-3 rounded-xl ${Number(umkmGrowthPercent) >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
+              {Number(umkmGrowthPercent) >= 0 ? (
+                <FiTrendingUp size={24} className="text-green-600" />
+              ) : (
+                <FiTrendingDown size={24} className="text-red-600" />
+              )}
+            </div>
+          </div>
+          <p className="mt-3 text-sm text-gray-500">Dibanding bulan sebelumnya</p>
+        </div>
+
+        {/* Growth Rate Users */}
+        <div className="bg-white rounded-2xl p-5 shadow-lg border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-500 text-sm font-medium">Pertumbuhan User</p>
+              <p className="text-3xl font-bold mt-1 text-gray-900">{usersGrowthPercent}%</p>
+            </div>
+            <div className={`p-3 rounded-xl ${Number(usersGrowthPercent) >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
+              {Number(usersGrowthPercent) >= 0 ? (
+                <FiTrendingUp size={24} className="text-green-600" />
+              ) : (
+                <FiTrendingDown size={24} className="text-red-600" />
+              )}
+            </div>
+          </div>
+          <p className="mt-3 text-sm text-gray-500">Dibanding bulan sebelumnya</p>
+        </div>
+      </div>
+
+      {/* Main Chart */}
       <Card>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="text-center sm:text-left">
-            <p className="text-sm text-gray-600">Total Data Points</p>
-            <p className="text-2xl font-bold text-gray-900">{growthData.length} Bulan</p>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">📈 Tren Pertumbuhan</h2>
+            <p className="text-sm text-gray-500 mt-1">Visualisasi perkembangan UMKM dan User dari waktu ke waktu</p>
           </div>
-          <div className="text-center sm:text-left">
-            <p className="text-sm text-gray-600">UMKM Terbaru</p>
-            <p className="text-2xl font-bold text-blue-600">
-              {growthData[growthData.length - 1]?.umkm || 0}
-            </p>
-          </div>
-          <div className="text-center sm:text-left">
-            <p className="text-sm text-gray-600">User Terbaru</p>
-            <p className="text-2xl font-bold text-green-600">
-              {growthData[growthData.length - 1]?.users || 0}
-            </p>
-          </div>
+        </div>
+        <div className="h-80 sm:h-96">
+          <Line data={lineChartData} options={lineChartOptions} />
         </div>
       </Card>
 
-      {/* Statistics Table */}
+      {/* Secondary Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Bar Chart */}
+        <Card className="lg:col-span-2">
+          <h2 className="text-lg font-bold text-gray-900 mb-4">📊 Perbandingan 6 Bulan Terakhir</h2>
+          <div className="h-64">
+            <Bar data={barChartData} options={barChartOptions} />
+          </div>
+        </Card>
+
+        {/* Doughnut Chart */}
+        <Card>
+          <h2 className="text-lg font-bold text-gray-900 mb-4">🎯 Rasio UMKM vs Users</h2>
+          <div className="h-64 flex items-center justify-center">
+            <Doughnut data={doughnutData} options={doughnutOptions} />
+          </div>
+          <div className="mt-4 text-center">
+            <p className="text-sm text-gray-500">
+              Rasio: <span className="font-semibold text-gray-900">1 UMKM : {totalUsers > 0 ? (totalUsers / Math.max(totalUMKM, 1)).toFixed(1) : 0} User</span>
+            </p>
+          </div>
+        </Card>
+      </div>
+
+      {/* Data Table */}
       <Card>
-        <h2 className="text-lg lg:text-xl font-bold text-gray-900 mb-4">Data Pertumbuhan</h2>
-        
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 text-xs sm:text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Bulan
-                </th>
-                <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <span className="hidden sm:inline">Total </span>UMKM
-                </th>
-                <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <span className="hidden sm:inline">Total </span>Users
-                </th>
-                <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <span className="hidden sm:inline">Pertumbuhan </span>↑ UMKM
-                </th>
-                <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <span className="hidden sm:inline">Pertumbuhan </span>↑ Users
-                </th>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-gray-900">📋 Detail Data Bulanan</h2>
+          <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+            {growthData.length} bulan data
+          </span>
+        </div>
+
+        <div className="overflow-x-auto rounded-xl border border-gray-200">
+          <table className="min-w-full">
+            <thead>
+              <tr className="bg-gray-50">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Periode</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">UMKM</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Users</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Δ UMKM</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Δ Users</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-100">
               {growthData.slice(0, rowsToShow).map((data, index) => {
-                const prevData = index > 0 ? growthData[index - 1] : null;
-                const umkmGrowth = prevData
-                  ? data.umkm - prevData.umkm
-                  : null;
-                const usersGrowth = prevData
-                  ? data.users - prevData.users
-                  : null;
+                const prev = index > 0 ? growthData[index - 1] : null;
+                const dUMKM = prev ? data.umkm - prev.umkm : null;
+                const dUsers = prev ? data.users - prev.users : null;
 
                 return (
-                  <tr key={data.month} className="hover:bg-gray-50">
-                    <td className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 whitespace-nowrap font-medium text-gray-900">
-                      <span className="hidden sm:inline">{data.month}</span>
-                      <span className="sm:hidden">{data.month.split(' ')[0].slice(0, 3)} {data.month.split(' ')[1]}</span>
+                  <tr key={data.month} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3 font-medium text-gray-900">{data.month}</td>
+                    <td className="px-4 py-3 text-right">
+                      <span className="font-semibold text-blue-600">{data.umkm.toLocaleString()}</span>
                     </td>
-                    <td className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 whitespace-nowrap text-gray-900 font-semibold">
-                      {data.umkm}
+                    <td className="px-4 py-3 text-right">
+                      <span className="font-semibold text-emerald-600">{data.users.toLocaleString()}</span>
                     </td>
-                    <td className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 whitespace-nowrap text-gray-900 font-semibold">
-                      {data.users}
-                    </td>
-                    <td className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 whitespace-nowrap">
-                      {umkmGrowth !== null && (
-                        <span
-                          className={`px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-semibold rounded-full ${
-                            umkmGrowth >= 0
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {umkmGrowth >= 0 ? '+' : ''}
-                          {umkmGrowth}
+                    <td className="px-4 py-3 text-center">
+                      {dUMKM !== null ? (
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${dUMKM >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                          }`}>
+                          {dUMKM >= 0 ? <FiTrendingUp size={12} /> : <FiTrendingDown size={12} />}
+                          {dUMKM >= 0 ? '+' : ''}{dUMKM}
                         </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
                       )}
-                      {umkmGrowth === null && <span className="text-gray-400">-</span>}
                     </td>
-                    <td className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 whitespace-nowrap">
-                      {usersGrowth !== null && (
-                        <span
-                          className={`px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-semibold rounded-full ${
-                            usersGrowth >= 0
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {usersGrowth >= 0 ? '+' : ''}
-                          {usersGrowth}
+                    <td className="px-4 py-3 text-center">
+                      {dUsers !== null ? (
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${dUsers >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                          }`}>
+                          {dUsers >= 0 ? <FiTrendingUp size={12} /> : <FiTrendingDown size={12} />}
+                          {dUsers >= 0 ? '+' : ''}{dUsers}
                         </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
                       )}
-                      {usersGrowth === null && <span className="text-gray-400">-</span>}
                     </td>
                   </tr>
                 );
@@ -336,80 +508,27 @@ export default function AnalyticsPage() {
           </table>
         </div>
 
-        {/* Show More/Less Controls */}
-        {growthData.length > 5 && (
-          <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-gray-200">
-            <p className="text-sm text-gray-600">
-              Menampilkan {Math.min(rowsToShow, growthData.length)} dari {growthData.length} bulan
-            </p>
-            <div className="flex gap-2">
-              {rowsToShow < growthData.length && (
-                <button
-                  onClick={() => setRowsToShow(prev => Math.min(prev + 5, growthData.length))}
-                  className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                  Tampilkan Lebih Banyak
-                </button>
-              )}
-              {rowsToShow < growthData.length && (
-                <button
-                  onClick={() => setRowsToShow(growthData.length)}
-                  className="px-4 py-2 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition-colors"
-                >
-                  Tampilkan Semua
-                </button>
-              )}
-              {rowsToShow > 5 && (
-                <button
-                  onClick={() => setRowsToShow(5)}
-                  className="px-4 py-2 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                  </svg>
-                  Tampilkan Lebih Sedikit
-                </button>
-              )}
-            </div>
+        {growthData.length > 6 && (
+          <div className="mt-4 flex justify-center gap-3">
+            {rowsToShow < growthData.length && (
+              <button
+                onClick={() => setRowsToShow(growthData.length)}
+                className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+              >
+                Tampilkan Semua ({growthData.length})
+              </button>
+            )}
+            {rowsToShow > 6 && (
+              <button
+                onClick={() => setRowsToShow(6)}
+                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Tampilkan Lebih Sedikit
+              </button>
+            )}
           </div>
         )}
       </Card>
-
-      {/* Line Chart */}
-      <Card>
-        <h2 className="text-lg lg:text-xl font-bold text-gray-900 mb-4">
-          Grafik Pertumbuhan
-        </h2>
-        <div className="h-64 sm:h-80 lg:h-96">
-          <Line data={lineChartData} options={chartOptions} />
-        </div>
-      </Card>
-
-      {/* Scroll to Top Button */}
-      {showScrollTop && (
-        <button
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-all duration-300 z-50 hover:scale-110"
-          aria-label="Scroll to top"
-        >
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M5 10l7-7m0 0l7 7m-7-7v18"
-            />
-          </svg>
-        </button>
-      )}
     </div>
   );
 }

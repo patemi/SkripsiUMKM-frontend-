@@ -38,14 +38,14 @@ export default function AdminProfilePage() {
     const timer = setTimeout(() => {
       fetchProfile();
     }, 100);
-    
+
     return () => clearTimeout(timer);
   }, []);
 
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      
+
       if (!token) {
         setError('Token tidak ditemukan. Silakan login kembali.');
         setLoading(false);
@@ -123,10 +123,10 @@ export default function AdminProfilePage() {
 
     try {
       const token = localStorage.getItem('token');
-      
+
       console.log('Updating profile with:', { namaAdmin, usernameAdmin });
       console.log('Token:', token ? 'exists' : 'not found');
-      
+
       const response = await fetch(`${API_URL}/admin/profile`, {
         method: 'PUT',
         headers: {
@@ -146,13 +146,16 @@ export default function AdminProfilePage() {
         setProfile(data.data);
         setSuccessMessage('Profil berhasil diperbarui');
         setIsEditingProfile(false);
-        
+
         // Update localStorage if username changed
         const adminData = JSON.parse(localStorage.getItem('admin') || '{}');
         adminData.nama_admin = data.data.nama_admin;
         adminData.username_admin = data.data.username_admin;
         localStorage.setItem('admin', JSON.stringify(adminData));
-        
+
+        // Dispatch custom event to notify layout to refresh admin name
+        window.dispatchEvent(new Event('adminProfileUpdated'));
+
         // Auto hide success message after 3 seconds
         setTimeout(() => setSuccessMessage(null), 3000);
       } else {
@@ -187,7 +190,7 @@ export default function AdminProfilePage() {
 
     try {
       const token = localStorage.getItem('token');
-      
+
       const response = await fetch(`${API_URL}/admin/password`, {
         method: 'PUT',
         headers: {

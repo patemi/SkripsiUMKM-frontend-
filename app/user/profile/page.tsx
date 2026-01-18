@@ -41,15 +41,15 @@ export default function UserProfilePage() {
   useEffect(() => {
     const loadProfile = async () => {
       const token = localStorage.getItem('userToken');
-      
+
       if (!token) {
         router.push('/user/login');
         return;
       }
-      
+
       await fetchProfile();
     };
-    
+
     loadProfile();
   }, []);
 
@@ -121,6 +121,22 @@ export default function UserProfilePage() {
         setProfile(data.data);
         setSuccessMessage('Profil berhasil diperbarui');
         setIsEditingProfile(false);
+
+        // Update localStorage agar halaman lain juga terupdate
+        const userDataStr = localStorage.getItem('userData');
+        if (userDataStr) {
+          try {
+            const userData = JSON.parse(userDataStr);
+            userData.nama_user = data.data.nama_user;
+            userData.email_user = data.data.email_user;
+            localStorage.setItem('userData', JSON.stringify(userData));
+
+            // Dispatch custom event untuk refresh halaman lain (home, navbar, dll)
+            window.dispatchEvent(new Event('userProfileUpdated'));
+          } catch (e) {
+            console.error('Error updating localStorage:', e);
+          }
+        }
 
         setTimeout(() => setSuccessMessage(null), 3000);
       } else {
