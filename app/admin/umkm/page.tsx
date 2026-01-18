@@ -97,7 +97,7 @@ export default function UMKMManagementPage() {
         }));
 
         // Sort by views descending (tertinggi ke terendah)
-        const sortedData = mappedData.sort((a, b) => b.views - a.views);
+        const sortedData = mappedData.sort((a: any, b: any) => b.views - a.views);
 
         setUmkmList(sortedData);
         setFilteredUmkmList(sortedData); // Set initial filtered list
@@ -208,8 +208,8 @@ export default function UMKMManagementPage() {
                 key={kategori}
                 onClick={() => setSelectedKategori(kategori)}
                 className={`relative px-3 sm:px-4 py-2 sm:py-3 rounded-lg sm:rounded-xl font-medium transition-all duration-200 text-left ${isActive
-                    ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-200 scale-105'
-                    : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-300 hover:shadow-md'
+                  ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-200 scale-105'
+                  : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-300 hover:shadow-md'
                   }`}
               >
                 <div className="flex flex-col">
