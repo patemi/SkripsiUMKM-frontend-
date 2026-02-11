@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000/api}
+    env_file:
+      - .env
     environment:
       NODE_ENV: production
     ports:
@@ -17,6 +19,8 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile
+    env_file:
+      - .env
     environment:
       NODE_ENV: production
       PORT: 5000
