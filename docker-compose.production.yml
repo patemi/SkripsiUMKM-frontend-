@@ -1,0 +1,54 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000/api}
+    environment:
+      NODE_ENV: production
+    ports:
+      - "3666:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      MONGODB_URI: mongodb://mongo:27017/umkm_db
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_API_KEY: ${MEILI_MASTER_KEY:-change_this_key}
+      FRONTEND_URL: http://localhost:3666
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongo
+      - meilisearch
+    volumes:
+      - ../backend/uploads:/app/uploads
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.6
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-change_this_key}
+    volumes:
+      - meili_data:/meili_data
+    ports:
+      - "7700:7700"
+
+volumes:
+  mongo_data:
+  meili_data:

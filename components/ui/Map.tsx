@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import L from 'leaflet';
+import { useEffect, useRef, useState } from 'react';
+import type * as Leaflet from 'leaflet';
 
 interface Marker {
   id: string;
@@ -24,7 +24,7 @@ interface MapProps {
 }
 
 // Custom icons
-const createIcon = (color: string) => {
+const createIcon = (L: typeof import('leaflet'), color: string) => {
   return L.icon({
     iconUrl: `data:image/svg+xml;base64,${btoa(`
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" width="32" height="32">
@@ -46,14 +46,38 @@ export default function Map({
   userLocation,
   showUserLocation = false,
 }: MapProps) {
-  const mapRef = useRef<L.Map | null>(null);
+  const [leafletReady, setLeafletReady] = useState(false);
+  const mapRef = useRef<Leaflet.Map | null>(null);
   const mapContainer = useRef<HTMLDivElement>(null);
-  const markersRef = useRef<{ [key: string]: L.Marker }>({});
-  const userMarkerRef = useRef<L.Marker | null>(null);
+  const markersRef = useRef<{ [key: string]: Leaflet.Marker }>({});
+  const userMarkerRef = useRef<Leaflet.Marker | null>(null);
+  const leafletRef = useRef<typeof import('leaflet') | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (leafletRef.current) {
+      setLeafletReady(true);
+      return undefined;
+    }
+
+    (async () => {
+      const L = await import('leaflet');
+      if (!isMounted) return;
+      leafletRef.current = L;
+      setLeafletReady(true);
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || mapRef.current) return;
+    if (!leafletReady || !mapContainer.current || mapRef.current || !leafletRef.current) return;
+
+    const L = leafletRef.current;
 
     // Create map
     mapRef.current = L.map(mapContainer.current).setView(
@@ -79,7 +103,9 @@ export default function Map({
 
   // Update markers
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !leafletRef.current) return;
+
+    const L = leafletRef.current;
 
     // Remove old markers
     Object.values(markersRef.current).forEach((marker) => {
@@ -90,7 +116,7 @@ export default function Map({
     // Add new markers
     markers.forEach((marker) => {
       const leafletMarker = L.marker([marker.lat, marker.lng], {
-        icon: createIcon('#3B82F6'), // Blue
+        icon: createIcon(L, '#3B82F6'), // Blue
       }).addTo(mapRef.current!);
 
       // Create popup content
@@ -131,7 +157,9 @@ export default function Map({
 
   // Update user location marker
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !leafletRef.current) return;
+
+    const L = leafletRef.current;
 
     // Remove old user marker
     if (userMarkerRef.current) {
@@ -144,7 +172,7 @@ export default function Map({
       userMarkerRef.current = L.marker(
         [userLocation.lat, userLocation.lng],
         {
-          icon: createIcon('#10B981'), // Green
+          icon: createIcon(L, '#10B981'), // Green
         }
       ).addTo(mapRef.current);
 
