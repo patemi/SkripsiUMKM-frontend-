@@ -24,6 +24,9 @@ services:
       MEILISEARCH_HOST: http://meilisearch:7700
       MEILISEARCH_API_KEY: ${MEILI_MASTER_KEY:-change_this_key}
       FRONTEND_URL: http://localhost:3666
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-https://soraumkm.biz.id/api/user/auth/google/callback}
     ports:
       - "5000:5000"
     depends_on:
