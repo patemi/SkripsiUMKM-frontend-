@@ -62,16 +62,17 @@ export default function Map({
     }
 
     (async () => {
-      const L = await import('leaflet');
+      const leafletModule = await import('leaflet');
+      const L = (leafletModule as any).default || leafletModule;
       if (!isMounted) return;
-      leafletRef.current = L;
+      leafletRef.current = L as typeof import('leaflet');
       setLeafletReady(true);
     })();
 
     return () => {
       isMounted = false;
     };
-  }, [leafletReady, center.lat, center.lng, zoom]);
+  }, []);
 
   // Initialize map
   useEffect(() => {
@@ -107,7 +108,7 @@ export default function Map({
         mapRef.current = null;
       }
     };
-  }, []);
+  }, [leafletReady, center.lat, center.lng, zoom]);
 
   // Update markers
   useEffect(() => {
