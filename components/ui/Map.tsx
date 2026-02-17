@@ -186,7 +186,6 @@ export default function Map({
       ).addTo(mapRef.current);
 
       userMarkerRef.current.bindPopup('📍 Lokasi Anda');
-      userMarkerRef.current.openPopup();
     }
   }, [userLocation, showUserLocation]);
 

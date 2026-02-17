@@ -67,6 +67,8 @@ export default function UserHomePage() {
   
   const resultsRef = useRef<HTMLDivElement>(null);
   const myUMKMScrollRef = useRef<HTMLDivElement>(null);
+  const locationWatchIdRef = useRef<number | null>(null);
+  const hasShownLocationSuccessRef = useRef(false);
 
   // Function to handle location permission acceptance
   const handleLocationPermissionAccept = () => {
@@ -281,7 +283,7 @@ export default function UserHomePage() {
       
       filtered = filtered
         .map(umkm => {
-          const umkmCoords = extractCoordinates(umkm.maps || '');
+          const umkmCoords = getUmkmCoordinates(umkm);
           if (umkmCoords && userLocation) {
             const distance = calculateDistance(
               userLocation.lat,
@@ -538,6 +540,13 @@ export default function UserHomePage() {
     setShowLocationPermission(true);
   };
 
+  const stopLocationTracking = () => {
+    if (locationWatchIdRef.current !== null && navigator.geolocation) {
+      navigator.geolocation.clearWatch(locationWatchIdRef.current);
+      locationWatchIdRef.current = null;
+    }
+  };
+
   const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
     // Haversine formula to calculate distance in kilometers
     const R = 6371; // Earth's radius in km
@@ -554,19 +563,29 @@ export default function UserHomePage() {
   const extractCoordinates = (mapsUrl: string): {lat: number; lng: number} | null => {
     if (!mapsUrl) return null;
     
-    // Try to extract coordinates from Google Maps URL
-    // Format: https://maps.google.com/?q=-7.5678,110.1234 or various other formats
+    // Try to extract coordinates from multiple Google Maps URL formats
     const patterns = [
-      /@(-?\d+\.\d+),(-?\d+\.\d+)/, // @lat,lng format
-      /q=(-?\d+\.\d+),(-?\d+\.\d+)/, // q=lat,lng format
-      /ll=(-?\d+\.\d+),(-?\d+\.\d+)/, // ll=lat,lng format
+      /@(-?\d+\.?\d*),(-?\d+\.?\d*)/, // @lat,lng format
+      /q=(-?\d+\.?\d*),(-?\d+\.?\d*)/, // q=lat,lng format
+      /ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/, // ll=lat,lng format
+      /place\/.*\/@(-?\d+\.?\d*),(-?\d+\.?\d*)/, // place/@lat,lng format
+      /!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/, // !3d lat !4d lng format
+      /center=(-?\d+\.?\d*),(-?\d+\.?\d*)/, // center=lat,lng format
+      /destination=(-?\d+\.?\d*),(-?\d+\.?\d*)/, // destination=lat,lng format
+      /!1d(-?\d+\.?\d*)!2d(-?\d+\.?\d*)/, // !1d lng !2d lat format (reversed)
     ];
     
     for (const pattern of patterns) {
       const match = mapsUrl.match(pattern);
       if (match) {
-        const lat = parseFloat(match[1]);
-        const lng = parseFloat(match[2]);
+        let lat = parseFloat(match[1]);
+        let lng = parseFloat(match[2]);
+
+        // Handle reversed format (!1d lng !2d lat)
+        if (pattern.toString().includes('!1d')) {
+          [lat, lng] = [lng, lat];
+        }
+
         // Validate coordinates
         if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
           return { lat, lng };
@@ -580,7 +599,11 @@ export default function UserHomePage() {
   // Helper to get coordinates from UMKM (new lokasi field or legacy maps URL)
   const getUmkmCoordinates = (umkm: any): {lat: number; lng: number} | null => {
     // Priority 1: Use lokasi field if available (new format from backend)
-    if (umkm.lokasi && umkm.lokasi.latitude && umkm.lokasi.longitude) {
+    if (
+      umkm.lokasi &&
+      typeof umkm.lokasi.latitude === 'number' &&
+      typeof umkm.lokasi.longitude === 'number'
+    ) {
       return { 
         lat: umkm.lokasi.latitude, 
         lng: umkm.lokasi.longitude 
@@ -608,7 +631,10 @@ export default function UserHomePage() {
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
+    stopLocationTracking();
+    hasShownLocationSuccessRef.current = false;
+
+    locationWatchIdRef.current = navigator.geolocation.watchPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
         console.log('✅ Location detected:', { latitude, longitude });
@@ -616,12 +642,16 @@ export default function UserHomePage() {
         setDetectedCoords({ lat: latitude, lng: longitude });
         setSortByDistance(true);
         setLoadingLocation(false);
-        setShowLocationSuccess(true);
-        
-        // Auto-close success modal after 3 seconds
-        setTimeout(() => {
-          setShowLocationSuccess(false);
-        }, 3000);
+
+        if (!hasShownLocationSuccessRef.current) {
+          hasShownLocationSuccessRef.current = true;
+          setShowLocationSuccess(true);
+
+          // Auto-close success modal after 3 seconds
+          setTimeout(() => {
+            setShowLocationSuccess(false);
+          }, 3000);
+        }
       },
       (error) => {
         console.error('❌ Error getting location:', error.message);
@@ -638,9 +668,24 @@ export default function UserHomePage() {
         setLocationError(errorMsg);
         setShowLocationError(true);
         setLoadingLocation(false);
+
+                stopLocationTracking();
+                setSortByDistance(false);
       }
+              ,
+              {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0,
+              }
     );
   };
+
+          useEffect(() => {
+            return () => {
+              stopLocationTracking();
+            };
+          }, []);
 
   const isOpen = (jamOperasional: { [key: string]: string }) => {
     const days = ['minggu', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu'];
@@ -1455,6 +1500,7 @@ export default function UserHomePage() {
                     {sortByDistance && userLocation && (
                       <button
                         onClick={() => {
+                          stopLocationTracking();
                           setSortByDistance(false);
                           setUserLocation(null);
                         }}
@@ -1541,6 +1587,7 @@ export default function UserHomePage() {
               {sortByDistance && userLocation && (
                 <button
                   onClick={() => {
+                    stopLocationTracking();
                     setSortByDistance(false);
                     setUserLocation(null);
                   }}
