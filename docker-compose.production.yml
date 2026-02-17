@@ -27,7 +27,7 @@ services:
       MONGODB_URI: mongodb://mongo:27017/umkm_db
       MEILISEARCH_HOST: http://meilisearch:7700
       MEILISEARCH_API_KEY: ${MEILI_MASTER_KEY:-change_this_key}
-      FRONTEND_URL: http://localhost:3666
+      FRONTEND_URL: htpps://soraumkm.biz.id
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-https://soraumkm.biz.id/api/user/auth/google/callback}
