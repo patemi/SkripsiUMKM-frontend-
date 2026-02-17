@@ -71,7 +71,7 @@ export default function Map({
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [leafletReady, center.lat, center.lng, zoom]);
 
   // Initialize map
   useEffect(() => {
@@ -91,6 +91,14 @@ export default function Map({
         '© OpenStreetMap contributors',
       maxZoom: 19,
     }).addTo(mapRef.current);
+
+    mapRef.current.whenReady(() => {
+      mapRef.current?.invalidateSize();
+    });
+
+    setTimeout(() => {
+      mapRef.current?.invalidateSize();
+    }, 100);
 
     return () => {
       // Cleanup
