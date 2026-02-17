@@ -310,7 +310,7 @@ export default function UserHomePage() {
     setError(null);
     
     try {
-      const url = 'http://localhost:5000/api/umkm?status=approved';
+      const url = `${API_URL}/umkm?status=approved`;
       console.log('📡 Fetching from:', url);
       
       const res = await fetch(url, {

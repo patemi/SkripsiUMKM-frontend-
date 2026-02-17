@@ -1,5 +1,5 @@
 // API Configuration
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 // Helper function untuk fetch dengan error handling
 export async function apiRequest(endpoint: string, options?: RequestInit) {
