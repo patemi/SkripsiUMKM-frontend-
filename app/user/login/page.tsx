@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, Fragment } from 'react';
+import { useEffect, useState, Fragment } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { API_URL } from '@/lib/api';
 import { FiCheckCircle, FiAlertCircle, FiEye, FiEyeOff } from 'react-icons/fi';
 
 export default function UserLoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showError, setShowError] = useState(false);
@@ -17,6 +18,21 @@ export default function UserLoginPage() {
     username: '',
     password: '',
   });
+
+  useEffect(() => {
+    const oauthError = searchParams.get('error');
+
+    if (oauthError === 'google_auth_failed') {
+      setErrorMessage('Login Google gagal. Silakan coba lagi.');
+      setShowError(true);
+    } else if (oauthError === 'auth_failed') {
+      setErrorMessage('Autentikasi gagal. Silakan login kembali.');
+      setShowError(true);
+    } else if (oauthError === 'missing_data') {
+      setErrorMessage('Data login Google tidak lengkap. Silakan coba lagi.');
+      setShowError(true);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
