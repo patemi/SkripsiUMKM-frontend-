@@ -2,13 +2,12 @@
 
 import { useEffect, useState, Fragment } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { API_URL } from '@/lib/api';
 import { FiCheckCircle, FiAlertCircle, FiEye, FiEyeOff } from 'react-icons/fi';
 
 export default function UserLoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showError, setShowError] = useState(false);
@@ -20,7 +19,10 @@ export default function UserLoginPage() {
   });
 
   useEffect(() => {
-    const oauthError = searchParams.get('error');
+    if (typeof window === 'undefined') return;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const oauthError = urlParams.get('error');
 
     if (oauthError === 'google_auth_failed') {
       setErrorMessage('Login Google gagal. Silakan coba lagi.');
@@ -32,7 +34,7 @@ export default function UserLoginPage() {
       setErrorMessage('Data login Google tidak lengkap. Silakan coba lagi.');
       setShowError(true);
     }
-  }, [searchParams]);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
