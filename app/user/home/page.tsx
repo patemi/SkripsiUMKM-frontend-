@@ -562,6 +562,27 @@ export default function UserHomePage() {
 
   const extractCoordinates = (mapsUrl: string): {lat: number; lng: number} | null => {
     if (!mapsUrl) return null;
+
+    const value = String(mapsUrl).trim();
+
+    // Format: "-7.512710163930591, 110.00553053769471"
+    const plainCoordinatePattern = /^\s*(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)\s*$/;
+    const plainMatch = value.match(plainCoordinatePattern);
+    if (plainMatch) {
+      const lat = parseFloat(plainMatch[1]);
+      const lng = parseFloat(plainMatch[2]);
+
+      if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+        return { lat, lng };
+      }
+    }
+
+    let decodedValue = value;
+    try {
+      decodedValue = decodeURIComponent(value);
+    } catch {
+      decodedValue = value;
+    }
     
     // Try to extract coordinates from multiple Google Maps URL formats
     const patterns = [
@@ -576,7 +597,7 @@ export default function UserHomePage() {
     ];
     
     for (const pattern of patterns) {
-      const match = mapsUrl.match(pattern);
+      const match = decodedValue.match(pattern);
       if (match) {
         let lat = parseFloat(match[1]);
         let lng = parseFloat(match[2]);
@@ -598,6 +619,22 @@ export default function UserHomePage() {
 
   // Helper to get coordinates from UMKM (new lokasi field or legacy maps URL)
   const getUmkmCoordinates = (umkm: any): {lat: number; lng: number} | null => {
+    // Priority 0: Support numeric string or alternative shapes from production payload
+    const lokasiLat = Number(umkm?.lokasi?.latitude ?? umkm?.lokasi?.lat ?? umkm?.latitude ?? umkm?.lat);
+    const lokasiLng = Number(umkm?.lokasi?.longitude ?? umkm?.lokasi?.lng ?? umkm?.longitude ?? umkm?.lng);
+
+    if (
+      Number.isFinite(lokasiLat) &&
+      Number.isFinite(lokasiLng) &&
+      lokasiLat >= -90 && lokasiLat <= 90 &&
+      lokasiLng >= -180 && lokasiLng <= 180
+    ) {
+      return {
+        lat: lokasiLat,
+        lng: lokasiLng,
+      };
+    }
+
     // Priority 1: Use lokasi field if available (new format from backend)
     if (
       umkm.lokasi &&
@@ -622,6 +659,13 @@ export default function UserHomePage() {
   const getUserLocationWithModal = async () => {
     setLoadingLocation(true);
     console.log('📍 Requesting user location...');
+
+    if (!window.isSecureContext) {
+      setLocationError('Tracking realtime hanya berjalan di koneksi HTTPS (secure context).');
+      setShowLocationError(true);
+      setLoadingLocation(false);
+      return;
+    }
     
     if (!navigator.geolocation) {
       console.error('❌ Geolocation not supported');
