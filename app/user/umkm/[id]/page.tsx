@@ -14,6 +14,12 @@ interface UMKM {
   deskripsi: string;
   alamat: string;
   maps?: string;
+  lokasi?: {
+    latitude?: number;
+    longitude?: number;
+    lat?: number;
+    lng?: number;
+  };
   foto_umkm: string[];
   pembayaran: string[];
   jam_operasional: { [key: string]: string };
@@ -159,6 +165,26 @@ export default function UMKMDetailPage() {
     return null;
   };
 
+  const getUmkmCoordinates = (item: UMKM): { lat: number; lng: number } | null => {
+    const lat = Number(item?.lokasi?.latitude ?? item?.lokasi?.lat);
+    const lng = Number(item?.lokasi?.longitude ?? item?.lokasi?.lng);
+
+    if (
+      Number.isFinite(lat) &&
+      Number.isFinite(lng) &&
+      lat >= -90 && lat <= 90 &&
+      lng >= -180 && lng <= 180
+    ) {
+      return { lat, lng };
+    }
+
+    if (item.maps) {
+      return extractCoordinates(item.maps);
+    }
+
+    return null;
+  };
+
   const toggleZoom = (e?: React.MouseEvent) => {
     if (e) {
       e.stopPropagation();
@@ -240,6 +266,8 @@ export default function UMKMDetailPage() {
       </div>
     );
   }
+
+  const mapCoordinates = getUmkmCoordinates(umkm);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
@@ -574,20 +602,20 @@ export default function UMKMDetailPage() {
               <p className="text-gray-600 mb-4">{umkm.alamat}</p>
               
               {/* Interactive Map */}
-              {umkm.maps && extractCoordinates(umkm.maps) && (
+              {mapCoordinates && (
                 <div className="mb-4">
                   <Map
                     markers={[
                       {
                         id: umkm._id,
                         nama: umkm.nama_umkm,
-                        lat: extractCoordinates(umkm.maps)!.lat,
-                        lng: extractCoordinates(umkm.maps)!.lng,
+                        lat: mapCoordinates.lat,
+                        lng: mapCoordinates.lng,
                         kategori: umkm.kategori,
                         alamat: umkm.alamat,
                       },
                     ]}
-                    center={extractCoordinates(umkm.maps)!}
+                    center={mapCoordinates}
                     zoom={16}
                     height="300px"
                   />
