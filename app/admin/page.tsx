@@ -20,20 +20,47 @@ export default function AdminDashboard() {
   const extractCoordinates = (mapsUrl: string): { lat: number; lng: number } | null => {
     if (!mapsUrl) return null;
 
+    const value = String(mapsUrl).trim();
+
+    // Format langsung: "-7.512710163930591, 110.00553053769471"
+    const plainCoordinatePattern = /^\s*(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)\s*$/;
+    const plainMatch = value.match(plainCoordinatePattern);
+    if (plainMatch) {
+      const lat = parseFloat(plainMatch[1]);
+      const lng = parseFloat(plainMatch[2]);
+      if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+        return { lat, lng };
+      }
+    }
+
+    let decodedValue = value;
+    try {
+      decodedValue = decodeURIComponent(value);
+    } catch {
+      decodedValue = value;
+    }
+
     const patterns = [
-      /@(-?\d+\.\d+),(-?\d+\.\d+)/, // @lat,lng format
-      /q=(-?\d+\.\d+),(-?\d+\.\d+)/, // q=lat,lng format
-      /ll=(-?\d+\.\d+),(-?\d+\.\d+)/, // ll=lat,lng format
+      /@(-?\d+\.?\d*),(-?\d+\.?\d*)/, // @lat,lng format
+      /q=(-?\d+\.?\d*),(-?\d+\.?\d*)/, // q=lat,lng format
+      /ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/, // ll=lat,lng format
       /place\/.*\/@(-?\d+\.\d*),(-?\d+\.\d*)/, // place/@lat,lng format
-      /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/, // !3d lat !4d lng format
-      /center=(-?\d+\.\d+),(-?\d+\.\d+)/, // center=lat,lng format
+      /!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/, // !3d lat !4d lng format
+      /center=(-?\d+\.?\d*),(-?\d+\.?\d*)/, // center=lat,lng format
+      /destination=(-?\d+\.?\d*),(-?\d+\.?\d*)/, // destination=lat,lng format
+      /!1d(-?\d+\.?\d*)!2d(-?\d+\.?\d*)/, // !1d lng !2d lat format (reversed)
     ];
 
     for (const pattern of patterns) {
-      const match = mapsUrl.match(pattern);
+      const match = decodedValue.match(pattern);
       if (match) {
-        const lat = parseFloat(match[1]);
-        const lng = parseFloat(match[2]);
+        let lat = parseFloat(match[1]);
+        let lng = parseFloat(match[2]);
+
+        if (pattern.toString().includes('!1d')) {
+          [lat, lng] = [lng, lat];
+        }
+
         if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
           return { lat, lng };
         }
@@ -44,10 +71,19 @@ export default function AdminDashboard() {
 
   // Get coordinates from UMKM (support lokasi field atau maps URL)
   const getUmkmCoordinates = (umkm: any): { lat: number; lng: number } | null => {
-    // Priority 1: Use lokasi field if available
-    if (umkm.lokasi?.latitude && umkm.lokasi?.longitude) {
-      return { lat: umkm.lokasi.latitude, lng: umkm.lokasi.longitude };
+    // Priority 0: Normalize from various payload shapes (including numeric strings)
+    const lat = Number(umkm?.lokasi?.latitude ?? umkm?.lokasi?.lat ?? umkm?.latitude ?? umkm?.lat);
+    const lng = Number(umkm?.lokasi?.longitude ?? umkm?.lokasi?.lng ?? umkm?.longitude ?? umkm?.lng);
+
+    if (
+      Number.isFinite(lat) &&
+      Number.isFinite(lng) &&
+      lat >= -90 && lat <= 90 &&
+      lng >= -180 && lng <= 180
+    ) {
+      return { lat, lng };
     }
+
     // Priority 2: Extract from Google Maps URL
     const mapsUrl = umkm.linkMaps || umkm.maps || '';
     if (mapsUrl) {

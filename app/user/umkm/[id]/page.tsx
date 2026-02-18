@@ -14,6 +14,7 @@ interface UMKM {
   deskripsi: string;
   alamat: string;
   maps?: string;
+  linkMaps?: string;
   lokasi?: {
     latitude?: number;
     longitude?: number;
@@ -146,17 +147,47 @@ export default function UMKMDetailPage() {
   const extractCoordinates = (mapsUrl: string): { lat: number; lng: number } | null => {
     if (!mapsUrl) return null;
 
+    const value = String(mapsUrl).trim();
+
+    // Format langsung: "-7.512710163930591, 110.00553053769471"
+    const plainCoordinatePattern = /^\s*(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)\s*$/;
+    const plainMatch = value.match(plainCoordinatePattern);
+    if (plainMatch) {
+      const lat = parseFloat(plainMatch[1]);
+      const lng = parseFloat(plainMatch[2]);
+      if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+        return { lat, lng };
+      }
+    }
+
+    let decodedValue = value;
+    try {
+      decodedValue = decodeURIComponent(value);
+    } catch {
+      decodedValue = value;
+    }
+
     const patterns = [
-      /@(-?\d+\.\d+),(-?\d+\.\d+)/, // @lat,lng format
-      /q=(-?\d+\.\d+),(-?\d+\.\d+)/, // q=lat,lng format
-      /ll=(-?\d+\.\d+),(-?\d+\.\d+)/, // ll=lat,lng format
+      /@(-?\d+\.?\d*),(-?\d+\.?\d*)/, // @lat,lng format
+      /q=(-?\d+\.?\d*),(-?\d+\.?\d*)/, // q=lat,lng format
+      /ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/, // ll=lat,lng format
+      /place\/.*\/@(-?\d+\.?\d*),(-?\d+\.?\d*)/, // place/@lat,lng format
+      /!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/, // !3d lat !4d lng format
+      /center=(-?\d+\.?\d*),(-?\d+\.?\d*)/, // center=lat,lng format
+      /destination=(-?\d+\.?\d*),(-?\d+\.?\d*)/, // destination=lat,lng format
+      /!1d(-?\d+\.?\d*)!2d(-?\d+\.?\d*)/, // !1d lng !2d lat format (reversed)
     ];
 
     for (const pattern of patterns) {
-      const match = mapsUrl.match(pattern);
+      const match = decodedValue.match(pattern);
       if (match) {
-        const lat = parseFloat(match[1]);
-        const lng = parseFloat(match[2]);
+        let lat = parseFloat(match[1]);
+        let lng = parseFloat(match[2]);
+
+        if (pattern.toString().includes('!1d')) {
+          [lat, lng] = [lng, lat];
+        }
+
         if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
           return { lat, lng };
         }
@@ -178,8 +209,9 @@ export default function UMKMDetailPage() {
       return { lat, lng };
     }
 
-    if (item.maps) {
-      return extractCoordinates(item.maps);
+    const mapsUrl = item.maps || item.linkMaps;
+    if (mapsUrl) {
+      return extractCoordinates(mapsUrl);
     }
 
     return null;
@@ -268,6 +300,7 @@ export default function UMKMDetailPage() {
   }
 
   const mapCoordinates = getUmkmCoordinates(umkm);
+  const mapsUrl = umkm.maps || umkm.linkMaps;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
@@ -622,9 +655,9 @@ export default function UMKMDetailPage() {
                 </div>
               )}
               
-              {umkm.maps && (
+              {mapsUrl && (
                 <a
-                  href={umkm.maps}
+                  href={mapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
