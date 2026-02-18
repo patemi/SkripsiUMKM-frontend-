@@ -23,7 +23,7 @@ export default function AdminDashboard() {
     const value = String(mapsUrl).trim();
 
     // Format langsung: "-7.512710163930591, 110.00553053769471"
-    const plainCoordinatePattern = /^\s*(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)\s*$/;
+    const plainCoordinatePattern = /^\s*([+-]?\d+\.?\d*)\s*,\s*([+-]?\d+\.?\d*)\s*$/;
     const plainMatch = value.match(plainCoordinatePattern);
     if (plainMatch) {
       const lat = parseFloat(plainMatch[1]);
@@ -41,14 +41,14 @@ export default function AdminDashboard() {
     }
 
     const patterns = [
-      /@(-?\d+\.?\d*),(-?\d+\.?\d*)/, // @lat,lng format
-      /q=(-?\d+\.?\d*),(-?\d+\.?\d*)/, // q=lat,lng format
-      /ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/, // ll=lat,lng format
-      /place\/.*\/@(-?\d+\.\d*),(-?\d+\.\d*)/, // place/@lat,lng format
-      /!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/, // !3d lat !4d lng format
-      /center=(-?\d+\.?\d*),(-?\d+\.?\d*)/, // center=lat,lng format
-      /destination=(-?\d+\.?\d*),(-?\d+\.?\d*)/, // destination=lat,lng format
-      /!1d(-?\d+\.?\d*)!2d(-?\d+\.?\d*)/, // !1d lng !2d lat format (reversed)
+      /@([+-]?\d+\.?\d*),\+?([+-]?\d+\.?\d*)/, // @lat,lng format
+      /q=([+-]?\d+\.?\d*),\+?([+-]?\d+\.?\d*)/, // q=lat,lng format
+      /ll=([+-]?\d+\.?\d*),\+?([+-]?\d+\.?\d*)/, // ll=lat,lng format
+      /place\/.*\/@([+-]?\d+\.\d*),\+?([+-]?\d+\.\d*)/, // place/@lat,lng format
+      /!3d([+-]?\d+\.?\d*)!4d([+-]?\d+\.?\d*)/, // !3d lat !4d lng format
+      /center=([+-]?\d+\.?\d*),\+?([+-]?\d+\.?\d*)/, // center=lat,lng format
+      /destination=([+-]?\d+\.?\d*),\+?([+-]?\d+\.?\d*)/, // destination=lat,lng format
+      /!1d([+-]?\d+\.?\d*)!2d([+-]?\d+\.?\d*)/, // !1d lng !2d lat format (reversed)
     ];
 
     for (const pattern of patterns) {
@@ -143,7 +143,10 @@ export default function AdminDashboard() {
           kategori: item.kategori,
           deskripsi: item.deskripsi,
           alamat: item.alamat,
-          linkMaps: item.maps || '',
+          linkMaps: item.maps || item.linkMaps || '',
+          maps: item.maps || item.linkMaps || '',
+          latitude: item.latitude,
+          longitude: item.longitude,
           foto: item.foto_umkm || [],
           metodePembayaran: item.pembayaran || [],
           jamOperasional: item.jam_operasional || {},
@@ -170,8 +173,11 @@ export default function AdminDashboard() {
           kategori: item.kategori,
           deskripsi: item.deskripsi,
           alamat: item.alamat,
-          linkMaps: item.maps || '',
+          linkMaps: item.maps || item.linkMaps || '',
+          maps: item.maps || item.linkMaps || '',
           lokasi: item.lokasi || null, // Include lokasi field
+          latitude: item.latitude,
+          longitude: item.longitude,
           foto: item.foto_umkm || [],
           metodePembayaran: item.pembayaran || [],
           jamOperasional: item.jam_operasional || {},
