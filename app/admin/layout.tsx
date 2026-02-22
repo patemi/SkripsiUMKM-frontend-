@@ -156,11 +156,6 @@ export default function AdminLayout({
             <p className="text-sm text-gray-600 mt-1">Dashboard Panel</p>
           </div>
 
-          <div className="mx-4 mb-4 p-4 bg-blue-50 rounded-lg">
-            <p className="text-sm text-gray-600">Logged in as:</p>
-            <p className="font-semibold text-gray-800">{adminName}</p>
-          </div>
-
           <nav className="space-y-2 flex-1">
             {menuItems.map((item) => {
               const Icon = item.icon;
