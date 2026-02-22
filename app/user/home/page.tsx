@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FiMapPin, FiClock, FiPhone, FiInstagram, FiEye, FiFilter, FiSearch, FiLogOut, FiUser, FiList, FiCheckCircle, FiXCircle, FiArrowUp, FiTrash2, FiAlertTriangle, FiMenu, FiX } from 'react-icons/fi';
 import { API_URL } from '@/lib/api';
+import { clearUserSession } from '@/lib/auth';
 import { startActivityTracking, stopActivityTracking, setupActivityListeners } from '@/lib/activityTracker';
 import Map from '@/components/ui/Map';
 
@@ -370,9 +371,8 @@ export default function UserHomePage() {
   };
 
   const handleLogout = () => {
-    // Clear all user data
-    localStorage.removeItem('userToken');
-    localStorage.removeItem('userData');
+    // Clear all user session data
+    clearUserSession();
     
     // Clear filter and scroll states
     sessionStorage.removeItem('filterKategori');
@@ -382,8 +382,8 @@ export default function UserHomePage() {
     
     console.log('✅ User logged out successfully');
     
-    // Redirect to landing page
-    router.push('/');
+    // Force redirect ke login user supaya halaman protected tidak bisa dibuka lagi dengan tombol back
+    window.location.replace('/user/login');
   };
 
   const fetchMyUMKM = async () => {
@@ -566,7 +566,7 @@ export default function UserHomePage() {
     const value = String(mapsUrl).trim();
 
     // Format: "-7.512710163930591, 110.00553053769471"
-    const plainCoordinatePattern = /^\s*([+-]?\d+\.?\d*)\s*,\s*([+-]?\d+\.?\d*)\s*$/;
+    const plainCoordinatePattern = /^\s*(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)\s*$/;
     const plainMatch = value.match(plainCoordinatePattern);
     if (plainMatch) {
       const lat = parseFloat(plainMatch[1]);
@@ -586,14 +586,14 @@ export default function UserHomePage() {
     
     // Try to extract coordinates from multiple Google Maps URL formats
     const patterns = [
-      /@([+-]?\d+\.?\d*),\+?([+-]?\d+\.?\d*)/, // @lat,lng format
-      /q=([+-]?\d+\.?\d*),\+?([+-]?\d+\.?\d*)/, // q=lat,lng format
-      /ll=([+-]?\d+\.?\d*),\+?([+-]?\d+\.?\d*)/, // ll=lat,lng format
-      /place\/.*\/@([+-]?\d+\.?\d*),\+?([+-]?\d+\.?\d*)/, // place/@lat,lng format
-      /!3d([+-]?\d+\.?\d*)!4d([+-]?\d+\.?\d*)/, // !3d lat !4d lng format
-      /center=([+-]?\d+\.?\d*),\+?([+-]?\d+\.?\d*)/, // center=lat,lng format
-      /destination=([+-]?\d+\.?\d*),\+?([+-]?\d+\.?\d*)/, // destination=lat,lng format
-      /!1d([+-]?\d+\.?\d*)!2d([+-]?\d+\.?\d*)/, // !1d lng !2d lat format (reversed)
+      /@(-?\d+\.?\d*),(-?\d+\.?\d*)/, // @lat,lng format
+      /q=(-?\d+\.?\d*),(-?\d+\.?\d*)/, // q=lat,lng format
+      /ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/, // ll=lat,lng format
+      /place\/.*\/@(-?\d+\.?\d*),(-?\d+\.?\d*)/, // place/@lat,lng format
+      /!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/, // !3d lat !4d lng format
+      /center=(-?\d+\.?\d*),(-?\d+\.?\d*)/, // center=lat,lng format
+      /destination=(-?\d+\.?\d*),(-?\d+\.?\d*)/, // destination=lat,lng format
+      /!1d(-?\d+\.?\d*)!2d(-?\d+\.?\d*)/, // !1d lng !2d lat format (reversed)
     ];
     
     for (const pattern of patterns) {
@@ -783,35 +783,11 @@ export default function UserHomePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 px-4 py-12">
-        <div className="max-w-5xl mx-auto">
-          <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-blue-100 p-8 mb-8">
-            <div className="flex flex-col items-center text-center">
-              <div className="relative mb-4">
-                <div className="h-14 w-14 rounded-full border-4 border-blue-100"></div>
-                <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-blue-600"></div>
-              </div>
-              <h2 className="text-xl font-bold text-gray-800">Memuat Data UMKM</h2>
-              <p className="text-sm text-gray-500 mt-1">Mohon tunggu sebentar, kami sedang menyiapkan daftar UMKM untuk Anda.</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, index) => (
-              <div key={index} className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden animate-pulse">
-                <div className="h-44 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200" />
-                <div className="p-5 space-y-3">
-                  <div className="h-4 w-24 bg-gray-200 rounded-full" />
-                  <div className="h-6 w-3/4 bg-gray-200 rounded-lg" />
-                  <div className="h-4 w-full bg-gray-100 rounded" />
-                  <div className="h-4 w-5/6 bg-gray-100 rounded" />
-                  <div className="pt-2">
-                    <div className="h-9 w-full bg-gray-200 rounded-lg" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Memuat UMKM...</p>
+          <p className="text-xs text-gray-400 mt-2">Pastikan backend berjalan di port 5000</p>
         </div>
       </div>
     );
@@ -1043,32 +1019,9 @@ export default function UserHomePage() {
             
             <div ref={myUMKMScrollRef} className="flex-1 overflow-y-auto p-3 sm:p-6 bg-gray-50">
               {loadingMyUMKM ? (
-                <div className="py-6 sm:py-8">
-                  <div className="bg-white rounded-xl border border-blue-100 p-5 sm:p-6 mb-4 sm:mb-5">
-                    <div className="flex flex-col items-center text-center">
-                      <div className="relative mb-3">
-                        <div className="h-10 w-10 rounded-full border-4 border-blue-100"></div>
-                        <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-blue-600"></div>
-                      </div>
-                      <p className="text-gray-700 font-semibold">Memuat UMKM Anda</p>
-                      <p className="text-xs sm:text-sm text-gray-500 mt-1">Menyiapkan riwayat pengajuan dan status terbaru.</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 sm:space-y-4 animate-pulse">
-                    {[...Array(3)].map((_, index) => (
-                      <div key={index} className="bg-white rounded-xl border border-gray-100 p-4 sm:p-5">
-                        <div className="flex items-start gap-3">
-                          <div className="h-12 w-12 rounded-lg bg-gray-200 flex-shrink-0" />
-                          <div className="flex-1 space-y-2">
-                            <div className="h-4 w-2/3 bg-gray-200 rounded" />
-                            <div className="h-3 w-1/3 bg-gray-100 rounded" />
-                            <div className="h-3 w-full bg-gray-100 rounded" />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Memuat UMKM Anda...</p>
                 </div>
               ) : myUMKM.length === 0 ? (
                 <div className="text-center py-12 bg-white rounded-xl">

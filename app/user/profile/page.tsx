@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FiArrowLeft, FiUser, FiMail, FiLock, FiEye, FiEyeOff, FiCheckCircle, FiAlertCircle, FiCalendar, FiKey } from 'react-icons/fi';
 import { API_URL } from '@/lib/api';
+import { clearUserSession } from '@/lib/auth';
 import { Card } from '@/components/ui/Card';
 
 interface UserProfile {
@@ -43,7 +44,8 @@ export default function UserProfilePage() {
       const token = localStorage.getItem('userToken');
 
       if (!token) {
-        router.push('/user/login');
+        clearUserSession();
+        router.replace('/user/login');
         return;
       }
 
@@ -58,7 +60,8 @@ export default function UserProfilePage() {
       const token = localStorage.getItem('userToken');
 
       if (!token) {
-        router.push('/user/login');
+        clearUserSession();
+        router.replace('/user/login');
         setLoading(false);
         return;
       }
@@ -79,9 +82,8 @@ export default function UserProfilePage() {
         setError(null);
       } else {
         if (response.status === 401) {
-          localStorage.removeItem('userToken');
-          localStorage.removeItem('userData');
-          router.push('/user/login');
+          clearUserSession();
+          router.replace('/user/login');
           return;
         }
         setError(data.message || 'Gagal mengambil profil');

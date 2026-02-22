@@ -4,6 +4,7 @@ import { useEffect, useState, Fragment } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { API_URL } from '@/lib/api';
+import { setUserSession } from '@/lib/auth';
 import { FiCheckCircle, FiAlertCircle, FiEye, FiEyeOff } from 'react-icons/fi';
 
 export default function UserLoginPage() {
@@ -55,9 +56,6 @@ export default function UserLoginPage() {
       const data = await res.json();
 
       if (data.success) {
-        // Store user token and data
-        localStorage.setItem('userToken', data.token);
-
         // Normalize user data - backend returns 'id', but we also support '_id'
         const normalizedUserData = {
           ...data.data,
@@ -65,7 +63,7 @@ export default function UserLoginPage() {
           id: data.data.id || data.data._id
         };
 
-        localStorage.setItem('userData', JSON.stringify(normalizedUserData));
+        setUserSession(data.token, normalizedUserData);
 
         console.log('✅ User logged in successfully:', normalizedUserData);
 

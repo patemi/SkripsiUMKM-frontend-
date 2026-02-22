@@ -16,15 +16,34 @@ export interface AuthResponse {
   message?: string;
 }
 
+function setSessionCookie(name: string, value: string, maxAgeSeconds: number): void {
+  const secureFlag = window.location.protocol === 'https:' ? '; Secure' : '';
+  document.cookie = `${name}=${value}; path=/; max-age=${maxAgeSeconds}; SameSite=Lax${secureFlag}`;
+}
+
+function clearSessionCookie(name: string): void {
+  const secureFlag = window.location.protocol === 'https:' ? '; Secure' : '';
+  document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax${secureFlag}`;
+  document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax${secureFlag}`;
+}
+
 /**
  * Simpan token dan data admin ke localStorage dan cookie
  */
 export function setAdminSession(token: string, adminData: AdminData): void {
   localStorage.setItem('token', token);
   localStorage.setItem('admin', JSON.stringify(adminData));
-  
+
   // Set cookie untuk middleware check (7 hari)
-  document.cookie = `auth_token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+  setSessionCookie('auth_token', token, 7 * 24 * 60 * 60);
+}
+
+export function setUserSession(token: string, userData: unknown): void {
+  localStorage.setItem('userToken', token);
+  localStorage.setItem('userData', JSON.stringify(userData));
+
+  // Set cookie untuk middleware check (7 hari)
+  setSessionCookie('user_auth_token', token, 7 * 24 * 60 * 60);
 }
 
 /**
@@ -34,9 +53,15 @@ export function clearAdminSession(): void {
   localStorage.removeItem('token');
   localStorage.removeItem('admin');
   localStorage.removeItem('user');
-  
+
   // Hapus cookie juga
-  document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+  clearSessionCookie('auth_token');
+}
+
+export function clearUserSession(): void {
+  localStorage.removeItem('userToken');
+  localStorage.removeItem('userData');
+  clearSessionCookie('user_auth_token');
 }
 
 /**

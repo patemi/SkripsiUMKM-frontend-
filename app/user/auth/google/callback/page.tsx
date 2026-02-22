@@ -2,6 +2,7 @@
 
 import { useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { setUserSession } from '@/lib/auth';
 
 function CallbackHandler() {
   const searchParams = useSearchParams();
@@ -20,17 +21,13 @@ function CallbackHandler() {
     }
 
     if (token && userId) {
-      localStorage.setItem('userToken', token);
-      localStorage.setItem(
-        'userData',
-        JSON.stringify({
+      setUserSession(token, {
           _id: userId,
           id: userId,
           nama_user: name ? decodeURIComponent(name) : '',
           email_user: email ? decodeURIComponent(email) : '',
           authProvider: 'google',
-        })
-      );
+        });
 
       window.location.href = '/user/home';
     } else {
