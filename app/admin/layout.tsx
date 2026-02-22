@@ -150,13 +150,18 @@ export default function AdminLayout({
         className={`fixed top-0 left-0 z-40 w-64 h-screen transition-transform bg-white shadow-lg ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           } lg:translate-x-0`}
       >
-        <div className="h-full px-3 py-4 overflow-y-auto">
+        <div className="h-full px-3 py-4 overflow-y-auto flex flex-col">
           <div className="mb-8 px-4 pt-4">
             <h1 className="text-2xl font-bold text-blue-600">UMKM Admin</h1>
             <p className="text-sm text-gray-600 mt-1">Dashboard Panel</p>
           </div>
 
-          <nav className="space-y-2">
+          <div className="mx-4 mb-4 p-4 bg-blue-50 rounded-lg">
+            <p className="text-sm text-gray-600">Logged in as:</p>
+            <p className="font-semibold text-gray-800">{adminName}</p>
+          </div>
+
+          <nav className="space-y-2 flex-1">
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
@@ -178,19 +183,13 @@ export default function AdminLayout({
             })}
           </nav>
 
-          <div className="absolute bottom-4 left-0 right-0 px-7 space-y-3">
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center justify-center px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
-            >
-              <FiLogOut className="mr-2" size={18} />
-              Logout
-            </button>
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <p className="text-sm text-gray-600">Logged in as:</p>
-              <p className="font-semibold text-gray-800">{adminName}</p>
-            </div>
-          </div>
+          <button
+            onClick={handleLogout}
+            className="w-full mt-4 flex items-center justify-center px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+          >
+            <FiLogOut className="mr-2" size={18} />
+            Logout
+          </button>
         </div>
       </aside>
 
