@@ -20,6 +20,7 @@ export default function UMKMManagementPage() {
   const [selectedKategori, setSelectedKategori] = useState<string>('Semua');
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isExporting, setIsExporting] = useState(false);
   const itemsPerPage = 10;
 
   // Daftar kategori yang tersedia (sesuai dengan dashboard)
@@ -150,6 +151,61 @@ export default function UMKMManagementPage() {
     });
   };
 
+  const handleExportExcel = async () => {
+    try {
+      const token = localStorage.getItem('token');
+
+      if (!token) {
+        alert('Session expired. Silakan login kembali.');
+        return;
+      }
+
+      setIsExporting(true);
+
+      const params = new URLSearchParams({ status: 'approved' });
+      if (selectedKategori !== 'Semua') {
+        params.append('kategori', selectedKategori);
+      }
+
+      const response = await fetch(`${API_URL}/export/umkm?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Gagal export data UMKM';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch {
+          // ignore parse error and use default message
+        }
+        throw new Error(errorMessage);
+      }
+
+      const blob = await response.blob();
+      const disposition = response.headers.get('content-disposition');
+      const matchedFilename = disposition?.match(/filename="?([^\"]+)"?/i)?.[1];
+      const filename = matchedFilename || `data_umkm_${new Date().toISOString().slice(0, 10)}.xlsx`;
+
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Error exporting UMKM:', error);
+      alert(error instanceof Error ? error.message : 'Gagal export data UMKM');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -172,14 +228,14 @@ export default function UMKMManagementPage() {
             Tambah UMKM Baru
           </Button>
         </Link>
-        <a
-          href={`${API_URL}/export/umkm`}
-          target="_blank"
-          className="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors w-full sm:w-auto"
+        <button
+          onClick={handleExportExcel}
+          disabled={isExporting}
+          className="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors w-full sm:w-auto disabled:opacity-60 disabled:cursor-not-allowed"
         >
           <FiDownload className="mr-2" size={18} />
-          Export Excel
-        </a>
+          {isExporting ? 'Exporting...' : 'Export Excel'}
+        </button>
       </div>
 
       {/* Filter Section */}
