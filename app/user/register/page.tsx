@@ -9,9 +9,15 @@ import { FiCheckCircle, FiAlertCircle, FiEye, FiEyeOff } from 'react-icons/fi';
 export default function UserRegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [showVerificationSection, setShowVerificationSection] = useState(false);
+  const [infoMessage, setInfoMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -58,10 +64,9 @@ export default function UserRegisterPage() {
       const data = await res.json();
 
       if (data.success) {
-        setShowSuccess(true);
-        setTimeout(() => {
-          router.push('/user/login');
-        }, 2500);
+        setPendingEmail(formData.email.toLowerCase().trim());
+        setShowVerificationSection(true);
+        setInfoMessage('Registrasi berhasil. Kode verifikasi sudah dikirim ke email Anda.');
       } else {
         setErrorMessage(data.message || 'Registrasi gagal');
         setShowError(true);
@@ -80,6 +85,77 @@ export default function UserRegisterPage() {
       ...formData,
       [e.target.name]: e.target.value,
     });
+  };
+
+  const handleVerifyEmail = async () => {
+    if (!pendingEmail || !verificationCode.trim()) {
+      setErrorMessage('Kode verifikasi harus diisi');
+      setShowError(true);
+      return;
+    }
+
+    setVerifyLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/user/verify-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: pendingEmail,
+          code: verificationCode.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setShowSuccess(true);
+        setTimeout(() => {
+          router.push('/user/login');
+        }, 2000);
+      } else {
+        setErrorMessage(data.message || 'Verifikasi email gagal');
+        setShowError(true);
+      }
+    } catch (error) {
+      setErrorMessage('Terjadi kesalahan saat verifikasi email');
+      setShowError(true);
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (!pendingEmail) {
+      setErrorMessage('Email verifikasi tidak ditemukan. Silakan daftar ulang.');
+      setShowError(true);
+      return;
+    }
+
+    setResendLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/user/resend-verification-code`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: pendingEmail }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setInfoMessage(data.message || 'Kode verifikasi telah dikirim ulang.');
+      } else {
+        setErrorMessage(data.message || 'Gagal mengirim ulang kode verifikasi');
+        setShowError(true);
+      }
+    } catch (error) {
+      setErrorMessage('Terjadi kesalahan saat mengirim ulang kode verifikasi');
+      setShowError(true);
+    } finally {
+      setResendLoading(false);
+    }
   };
 
   return (
@@ -169,6 +245,47 @@ export default function UserRegisterPage() {
 
         {/* Form */}
         <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8">
+          {showVerificationSection && (
+            <div className="mb-6 p-4 rounded-xl border border-blue-200 bg-blue-50">
+              <h3 className="text-sm sm:text-base font-semibold text-blue-900 mb-2">Verifikasi Email</h3>
+              <p className="text-xs sm:text-sm text-blue-700 mb-3">
+                Masukkan 6 digit kode yang dikirim ke <span className="font-semibold">{pendingEmail}</span>
+              </p>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                  className="w-full px-4 py-3 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                  placeholder="Masukkan kode verifikasi"
+                />
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    type="button"
+                    onClick={handleVerifyEmail}
+                    disabled={verifyLoading}
+                    className="flex-1 py-2.5 px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {verifyLoading ? 'Memverifikasi...' : 'Verifikasi Email'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResendCode}
+                    disabled={resendLoading}
+                    className="flex-1 py-2.5 px-4 bg-white border border-blue-300 text-blue-700 font-semibold rounded-lg hover:bg-blue-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {resendLoading ? 'Mengirim...' : 'Kirim Ulang Kode'}
+                  </button>
+                </div>
+                {infoMessage && (
+                  <p className="text-xs text-blue-700">{infoMessage}</p>
+                )}
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             {/* Nama */}
             <div>
