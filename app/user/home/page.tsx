@@ -311,6 +311,10 @@ export default function UserHomePage() {
     console.log('🔄 Starting to fetch UMKM data...');
     setLoading(true);
     setError(null);
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      controller.abort();
+    }, 15000);
     
     try {
       const url = `${API_URL}/umkm?status=approved`;
@@ -321,6 +325,7 @@ export default function UserHomePage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        signal: controller.signal,
       });
       
       console.log('📊 Response status:', res.status, res.statusText);
@@ -348,10 +353,15 @@ export default function UserHomePage() {
       }
     } catch (error: any) {
       console.error('❌ Error fetching UMKM:', error);
-      setError(error.message || 'Gagal memuat data UMKM');
+      if (error?.name === 'AbortError') {
+        setError('Permintaan ke server terlalu lama. Cek koneksi atau backend API.');
+      } else {
+        setError(error.message || 'Gagal memuat data UMKM');
+      }
       setUmkmList([]);
       setFilteredUMKM([]);
     } finally {
+      window.clearTimeout(timeoutId);
       console.log('✅ Fetch complete, setting loading to false');
       setLoading(false);
       
@@ -787,7 +797,7 @@ export default function UserHomePage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Memuat UMKM...</p>
-          <p className="text-xs text-gray-400 mt-2">Pastikan backend berjalan di port 5000</p>
+          <p className="text-xs text-gray-400 mt-2">Menghubungkan ke server...</p>
         </div>
       </div>
     );
