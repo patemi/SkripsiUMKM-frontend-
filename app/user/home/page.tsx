@@ -36,6 +36,7 @@ const kategoriList = ['Semua', 'Kuliner', 'Fashion', 'Kerajinan', 'Jasa', 'Agrib
 export default function UserHomePage() {
   const router = useRouter();
   const [umkmList, setUmkmList] = useState<UMKM[]>([]);
+  const [topUmkmList, setTopUmkmList] = useState<UMKM[]>([]);
   const [filteredUMKM, setFilteredUMKM] = useState<UMKM[]>([]);
   const [myUMKM, setMyUMKM] = useState<UMKM[]>([]);
   const [showMyUMKM, setShowMyUMKM] = useState(false);
@@ -213,6 +214,7 @@ export default function UserHomePage() {
 
   useEffect(() => {
     fetchUMKM();
+    fetchTopUMKM();
   }, []);
 
   // Refresh myUMKM when returning from create page
@@ -377,6 +379,28 @@ export default function UserHomePage() {
           sessionStorage.removeItem('homeScrollPosition');
         }, 200);
       }
+    }
+  };
+
+  const fetchTopUMKM = async () => {
+    try {
+      const res = await fetch(`${API_URL}/umkm/top?limit=5`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!res.ok) {
+        return;
+      }
+
+      const response = await res.json();
+      if (response.success && Array.isArray(response.data)) {
+        setTopUmkmList(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching top UMKM:', error);
     }
   };
 
@@ -1401,6 +1425,45 @@ export default function UserHomePage() {
             Dukung ekonomi lokal dengan menemukan produk dan jasa dari UMKM terpercaya di sekitar Anda
           </p>
         </div>
+
+        {/* UMKM Populer */}
+        {topUmkmList.length > 0 && (
+          <div className="max-w-5xl mx-auto mb-8 sm:mb-10">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">🔥 UMKM Populer</h2>
+                <span className="text-xs sm:text-sm text-gray-500">Berdasarkan jumlah views</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                {topUmkmList.slice(0, 3).map((umkm, index) => (
+                  <button
+                    key={umkm._id}
+                    onClick={() => {
+                      sessionStorage.setItem('homeScrollPosition', window.scrollY.toString());
+                      sessionStorage.setItem('filterKategori', selectedKategori);
+                      sessionStorage.setItem('filterSearch', searchQuery);
+                      sessionStorage.setItem('filterSortDistance', sortByDistance.toString());
+                      router.push(`/user/umkm/${umkm._id}`);
+                    }}
+                    className="text-left p-4 border border-gray-200 rounded-xl hover:border-blue-400 hover:shadow-md transition-all"
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <span className="text-sm font-semibold text-blue-600">#{index + 1} Populer</span>
+                      <span className="inline-flex items-center gap-1 text-xs font-medium bg-blue-50 text-blue-700 px-2 py-1 rounded-full">
+                        <FiEye size={12} />
+                        {umkm.views || 0}
+                      </span>
+                    </div>
+                    <p className="font-bold text-gray-900 line-clamp-1">{umkm.nama_umkm}</p>
+                    <p className="text-xs text-gray-500 mt-1 line-clamp-1">{umkm.kategori}</p>
+                    <p className="text-sm text-gray-600 mt-2 line-clamp-2">{umkm.deskripsi}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Search and Filter Section */}
         <div className="max-w-5xl mx-auto mb-6 sm:mb-8">
           <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 md:p-6">
