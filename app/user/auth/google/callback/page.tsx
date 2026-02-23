@@ -13,6 +13,7 @@ function CallbackHandler() {
     const userId = searchParams.get('userId');
     const name = searchParams.get('name');
     const email = searchParams.get('email');
+    const username = searchParams.get('username');
     const error = searchParams.get('error');
 
     if (error) {
@@ -26,6 +27,7 @@ function CallbackHandler() {
           id: userId,
           nama_user: name ? decodeURIComponent(name) : '',
           email_user: email ? decodeURIComponent(email) : '',
+          username: username ? decodeURIComponent(username) : '',
           authProvider: 'google',
         });
 

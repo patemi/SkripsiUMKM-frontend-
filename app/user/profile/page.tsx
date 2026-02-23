@@ -27,6 +27,7 @@ export default function UserProfilePage() {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [namaUser, setNamaUser] = useState('');
   const [emailUser, setEmailUser] = useState('');
+  const [username, setUsername] = useState('');
   const [profileLoading, setProfileLoading] = useState(false);
 
   // Password change state
@@ -79,6 +80,7 @@ export default function UserProfilePage() {
         setProfile(data.data);
         setNamaUser(data.data.nama_user);
         setEmailUser(data.data.email_user);
+        setUsername(data.data.username || '');
         setError(null);
       } else {
         if (response.status === 401) {
@@ -113,7 +115,8 @@ export default function UserProfilePage() {
         },
         body: JSON.stringify({
           nama_user: namaUser,
-          email_user: emailUser
+          email_user: emailUser,
+          username
         })
       });
 
@@ -131,6 +134,7 @@ export default function UserProfilePage() {
             const userData = JSON.parse(userDataStr);
             userData.nama_user = data.data.nama_user;
             userData.email_user = data.data.email_user;
+            userData.username = data.data.username;
             localStorage.setItem('userData', JSON.stringify(userData));
 
             // Dispatch custom event untuk refresh halaman lain (home, navbar, dll)
@@ -377,6 +381,23 @@ export default function UserProfilePage() {
                     />
                   </div>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Username
+                  </label>
+                  <div className="relative">
+                    <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value.replace(/\s/g, ''))}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      required
+                      pattern="[a-zA-Z0-9_]+"
+                      title="Username hanya boleh berisi huruf, angka, dan underscore"
+                    />
+                  </div>
+                </div>
               </div>
               <div className="flex flex-col lg:flex-row gap-3 pt-4">
                 <button
@@ -392,6 +413,7 @@ export default function UserProfilePage() {
                     setIsEditingProfile(false);
                     setNamaUser(profile?.nama_user || '');
                     setEmailUser(profile?.email_user || '');
+                    setUsername(profile?.username || '');
                   }}
                   className="px-6 py-3 border-2 border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
                 >
