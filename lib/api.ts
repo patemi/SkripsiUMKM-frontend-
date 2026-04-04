@@ -1,13 +1,23 @@
 // API Configuration
 const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
 
+const isBrowser = typeof window !== 'undefined';
+const isLocalhost =
+  isBrowser &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+const shouldUseLocalBackendFallback = configuredApiUrl === '/api' && isLocalhost;
+
 const shouldForceRelativeApi =
-  typeof window !== 'undefined' &&
-  window.location.hostname !== 'localhost' &&
-  window.location.hostname !== '127.0.0.1' &&
+  isBrowser &&
+  !isLocalhost &&
   /localhost|127\.0\.0\.1/i.test(configuredApiUrl);
 
-export const API_URL = shouldForceRelativeApi ? '/api' : configuredApiUrl;
+export const API_URL = shouldUseLocalBackendFallback
+  ? 'http://localhost:5000/api'
+  : shouldForceRelativeApi
+    ? '/api'
+    : configuredApiUrl;
 
 // Helper function untuk fetch dengan error handling
 export async function apiRequest(endpoint: string, options?: RequestInit) {

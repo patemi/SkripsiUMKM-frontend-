@@ -136,7 +136,7 @@ export default function CreateUMKMPage() {
 
       const data = await res.json();
 
-      if (data.success) {
+      if (res.ok && data.success !== false) {
         alert('UMKM berhasil ditambahkan! Status: Pending approval');
         router.push('/admin/umkm');
       } else {
