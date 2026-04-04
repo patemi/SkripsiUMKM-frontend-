@@ -215,6 +215,15 @@ export default function UserHomePage() {
   useEffect(() => {
     fetchUMKM();
     fetchTopUMKM();
+
+    const intervalId = window.setInterval(() => {
+      fetchUMKM(true);
+      fetchTopUMKM();
+    }, 20000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
   }, []);
 
   // Refresh myUMKM when returning from create page
@@ -309,10 +318,12 @@ export default function UserHomePage() {
     setFilteredUMKM(filtered);
   }, [selectedKategori, searchQuery, umkmList, sortByDistance, userLocation, filterOpenNow]);
 
-  const fetchUMKM = async () => {
+  const fetchUMKM = async (silent = false) => {
     console.log('🔄 Starting to fetch UMKM data...');
-    setLoading(true);
-    setError(null);
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => {
       controller.abort();
@@ -355,6 +366,9 @@ export default function UserHomePage() {
       }
     } catch (error: any) {
       console.error('❌ Error fetching UMKM:', error);
+      if (silent) {
+        return;
+      }
       if (error?.name === 'AbortError') {
         setError('Permintaan ke server terlalu lama. Cek koneksi atau backend API.');
       } else {
@@ -364,6 +378,9 @@ export default function UserHomePage() {
       setFilteredUMKM([]);
     } finally {
       window.clearTimeout(timeoutId);
+      if (silent) {
+        return;
+      }
       console.log('✅ Fetch complete, setting loading to false');
       setLoading(false);
       

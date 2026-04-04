@@ -98,9 +98,21 @@ export default function AdminDashboard() {
       await fetchDashboardData();
     };
     loadData();
+
+    const intervalId = window.setInterval(() => {
+      fetchDashboardData(true);
+    }, 20000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
   }, []);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+    }
+
     try {
       const token = localStorage.getItem('token');
 
@@ -191,7 +203,9 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
