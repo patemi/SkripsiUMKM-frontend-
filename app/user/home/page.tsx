@@ -338,10 +338,10 @@ export default function UserHomePage() {
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => {
       controller.abort();
-    }, 15000);
+    }, silent ? 12000 : 30000);
     
     try {
-      const url = `${API_URL}/umkm?status=approved`;
+      const url = `${API_URL}/umkm?status=approved&limit=250`;
       console.log('📡 Fetching from:', url);
       
       const res = await fetch(url, {
@@ -368,6 +368,10 @@ export default function UserHomePage() {
         const data = response.data;
         setUmkmList(data);
         setFilteredUMKM(data);
+        localStorage.setItem('umkm_cache', JSON.stringify({
+          ts: Date.now(),
+          data,
+        }));
         console.log('✅ State updated successfully');
       } else {
         console.error('❌ Invalid response format:', response);
@@ -380,6 +384,22 @@ export default function UserHomePage() {
       if (silent) {
         return;
       }
+
+      const cachedRaw = localStorage.getItem('umkm_cache');
+      if (cachedRaw) {
+        try {
+          const cached = JSON.parse(cachedRaw);
+          if (Array.isArray(cached?.data) && cached.data.length > 0) {
+            setUmkmList(cached.data);
+            setFilteredUMKM(cached.data);
+            setError(null);
+            return;
+          }
+        } catch {
+          // Ignore cache parse errors and continue to show error
+        }
+      }
+
       if (error?.name === 'AbortError') {
         setError('Permintaan ke server terlalu lama. Cek koneksi atau backend API.');
       } else {

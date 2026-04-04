@@ -115,30 +115,23 @@ export default function AdminDashboard() {
 
     try {
       const token = localStorage.getItem('token');
+      const authHeaders = {
+        'Authorization': token ? `Bearer ${token}` : '',
+      };
 
-      // Fetch UMKM statistics
-      const statsRes = await fetch(`${API_URL}/umkm/stats/overview`, {
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-        }
-      });
-      const statsData = await statsRes.json();
+      const [statsRes, topRes, userRes, allRes] = await Promise.all([
+        fetch(`${API_URL}/umkm/stats/overview`, { headers: authHeaders }),
+        fetch(`${API_URL}/umkm/top?limit=5`, { headers: authHeaders }),
+        fetch(`${API_URL}/user/stats`, { headers: authHeaders }),
+        fetch(`${API_URL}/umkm?status=approved&limit=300`, { headers: authHeaders }),
+      ]);
 
-      // Fetch top UMKM - hanya yang approved
-      const topRes = await fetch(`${API_URL}/umkm/top?limit=5`, {
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-        }
-      });
-      const topData = await topRes.json();
-
-      // Fetch user stats
-      const userRes = await fetch(`${API_URL}/user/stats`, {
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-        }
-      });
-      const userData = await userRes.json();
+      const [statsData, topData, userData, allData] = await Promise.all([
+        statsRes.json(),
+        topRes.json(),
+        userRes.json(),
+        allRes.json(),
+      ]);
 
       if (statsData.success) {
         setStatistics({
@@ -169,14 +162,6 @@ export default function AdminDashboard() {
         }));
         setTopUMKM(mappedTop);
       }
-
-      // Fetch all UMKM for map
-      const allRes = await fetch(`${API_URL}/umkm?status=approved`, {
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-        }
-      });
-      const allData = await allRes.json();
 
       if (allData.success && allData.data) {
         const mappedAll = allData.data.map((item: any) => ({
