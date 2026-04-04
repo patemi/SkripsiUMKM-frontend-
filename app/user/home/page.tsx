@@ -104,17 +104,28 @@ export default function UserHomePage() {
     const currentDay = days[now.getDay()];
     const currentTime = now.getHours() * 60 + now.getMinutes(); // Convert to minutes
 
-    const todaySchedule = jamOperasional[currentDay];
-    if (!todaySchedule || todaySchedule === 'Tutup') {
+    const todayScheduleRaw = jamOperasional[currentDay];
+    const todaySchedule = String(todayScheduleRaw || '').trim();
+    const normalizedSchedule = todaySchedule
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .replace('–', '-')
+      .trim();
+
+    if (!todaySchedule || normalizedSchedule === 'tutup') {
       return false;
     }
 
-    if (todaySchedule === '24 Jam') {
+    if (
+      normalizedSchedule === '24 jam' ||
+      normalizedSchedule === 'buka 24 jam' ||
+      normalizedSchedule === '24jam'
+    ) {
       return true;
     }
 
     // Parse time range (e.g., "08:00 - 17:00")
-    const timeRange = todaySchedule.match(/(\d{2}):(\d{2})\s*-\s*(\d{2}):(\d{2})/);
+    const timeRange = normalizedSchedule.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
     if (!timeRange) {
       return false;
     }
@@ -783,26 +794,7 @@ export default function UserHomePage() {
           }, []);
 
   const isOpen = (jamOperasional: { [key: string]: string }) => {
-    const days = ['minggu', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu'];
-    const today = days[new Date().getDay()];
-    const jadwal = jamOperasional[today];
-
-    if (!jadwal || jadwal.toLowerCase() === 'tutup') return false;
-    if (jadwal.toLowerCase() === 'buka 24 jam') return true;
-
-    // Parse jam operasional (format: "08:00 - 22:00")
-    const [start, end] = jadwal.split('-').map(t => t.trim());
-    if (!start || !end) return false;
-
-    const now = new Date();
-    const [startHour, startMin] = start.split(':').map(Number);
-    const [endHour, endMin] = end.split(':').map(Number);
-
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    const startMinutes = startHour * 60 + startMin;
-    const endMinutes = endHour * 60 + endMin;
-
-    return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+    return isUMKMOpen(jamOperasional);
   };
 
   if (error) {
