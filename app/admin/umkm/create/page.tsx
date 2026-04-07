@@ -32,6 +32,7 @@ export default function CreateUMKMPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [fotoUrls, setFotoUrls] = useState<string[]>([]);
+  const [fotoFiles, setFotoFiles] = useState<File[]>([]);
   const [formData, setFormData] = useState({
     nama: '',
     kategori: 'Kuliner' as KategoriUMKM,
@@ -55,18 +56,41 @@ export default function CreateUMKMPage() {
     const files = e.target.files;
     if (files) {
       const fileArray = Array.from(files);
-      fileArray.forEach((file) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setFotoUrls((prev) => [...prev, reader.result as string]);
-        };
-        reader.readAsDataURL(file);
-      });
+      const remainingSlot = Math.max(0, 5 - fotoFiles.length);
+      if (remainingSlot === 0) {
+        alert('Maksimal 5 foto. Hapus foto lama jika ingin mengganti.');
+        return;
+      }
+
+      const acceptedFiles = fileArray
+        .slice(0, remainingSlot)
+        .filter((file) => file.type.startsWith('image/') && file.size <= 10 * 1024 * 1024);
+
+      if (acceptedFiles.length === 0) {
+        alert('File yang dipilih harus berupa gambar dan maksimal 10MB per file.');
+        return;
+      }
+
+      const nextUrls = acceptedFiles.map((file) => URL.createObjectURL(file));
+      setFotoFiles((prev) => [...prev, ...acceptedFiles]);
+      setFotoUrls((prev) => [...prev, ...nextUrls]);
+
+      if (fileArray.length > remainingSlot) {
+        alert(`Hanya ${remainingSlot} foto pertama yang ditambahkan (maksimal total 5 foto).`);
+      }
     }
+
+    e.target.value = '';
   };
 
   const removeFoto = (index: number) => {
+    const targetUrl = fotoUrls[index];
+    if (targetUrl) {
+      URL.revokeObjectURL(targetUrl);
+    }
+
     setFotoUrls((prev) => prev.filter((_, i) => i !== index));
+    setFotoFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -106,35 +130,47 @@ export default function CreateUMKMPage() {
         return;
       }
 
-      // Prepare data sesuai schema backend
-      const umkmData = {
-        nama_umkm: formData.nama,
-        kategori: formData.kategori,
-        deskripsi: formData.deskripsi,
-        pembayaran: metodePembayaran,
-        alamat: formData.alamat,
-        maps: formData.linkMaps,
-        jam_operasional: jamOperasional,
-        kontak: {
-          telepon: formData.telepon,
-          whatsapp: formData.whatsapp,
-          email: formData.email,
-          instagram: formData.instagram,
-          facebook: formData.facebook,
-        },
-        foto_umkm: fotoUrls, // Base64 images
-      };
+      // Kirim sebagai multipart/form-data agar stabil untuk upload gambar di production.
+      const payload = new FormData();
+      payload.append('nama_umkm', formData.nama);
+      payload.append('kategori', formData.kategori);
+      payload.append('deskripsi', formData.deskripsi);
+      payload.append('alamat', formData.alamat);
+      payload.append('maps', formData.linkMaps);
+      payload.append('pembayaran', JSON.stringify(metodePembayaran));
+      payload.append('jam_operasional', JSON.stringify(jamOperasional));
+      payload.append('kontak', JSON.stringify({
+        telepon: formData.telepon,
+        whatsapp: formData.whatsapp,
+        email: formData.email,
+        instagram: formData.instagram,
+        facebook: formData.facebook,
+      }));
+
+      fotoFiles.forEach((file) => {
+        payload.append('foto_umkm', file);
+      });
 
       const res = await fetch(`${API_URL}/umkm`, {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(umkmData),
+        body: payload,
       });
 
-      const data = await res.json();
+      const rawResponse = await res.text();
+      let data: { success?: boolean; message?: string } = {};
+
+      if (rawResponse) {
+        try {
+          data = JSON.parse(rawResponse);
+        } catch {
+          data = {
+            message: `Gagal menambahkan UMKM (HTTP ${res.status})`
+          };
+        }
+      }
 
       if (res.ok && data.success !== false) {
         alert('UMKM berhasil ditambahkan! Status: Pending approval');
