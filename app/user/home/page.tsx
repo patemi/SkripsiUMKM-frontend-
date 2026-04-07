@@ -82,6 +82,14 @@ export default function UserHomePage() {
   const locationWatchIdRef = useRef<number | null>(null);
   const hasShownLocationSuccessRef = useRef(false);
 
+  const persistDetailReturnContext = (returnViewMode: 'cards' | 'map') => {
+    sessionStorage.setItem('homeScrollPosition', window.scrollY.toString());
+    sessionStorage.setItem('filterKategori', selectedKategori);
+    sessionStorage.setItem('filterSearch', searchQuery);
+    sessionStorage.setItem('filterSortDistance', sortByDistance.toString());
+    sessionStorage.setItem('umkm_detail_return_view_mode', returnViewMode);
+  };
+
   // Function to handle location permission acceptance
   const handleLocationPermissionAccept = () => {
     setShowLocationPermission(false);
@@ -195,6 +203,12 @@ export default function UserHomePage() {
     const savedKategori = sessionStorage.getItem('filterKategori');
     const savedSearch = sessionStorage.getItem('filterSearch');
     const savedSortDistance = sessionStorage.getItem('filterSortDistance');
+    const returnViewMode = sessionStorage.getItem('umkm_detail_return_view_mode');
+
+    if (returnViewMode === 'cards' || returnViewMode === 'map') {
+      setViewMode(returnViewMode);
+      sessionStorage.removeItem('umkm_detail_return_view_mode');
+    }
     
     if (savedKategori) {
       setSelectedKategori(savedKategori);
@@ -1527,10 +1541,7 @@ export default function UserHomePage() {
                   <button
                     key={umkm._id}
                     onClick={() => {
-                      sessionStorage.setItem('homeScrollPosition', window.scrollY.toString());
-                      sessionStorage.setItem('filterKategori', selectedKategori);
-                      sessionStorage.setItem('filterSearch', searchQuery);
-                      sessionStorage.setItem('filterSortDistance', sortByDistance.toString());
+                      persistDetailReturnContext('cards');
                       router.push(`/user/umkm/${umkm._id}`);
                     }}
                     className="text-left p-4 border border-gray-200 rounded-xl hover:border-blue-400 hover:shadow-md transition-all"
@@ -1859,6 +1870,7 @@ export default function UserHomePage() {
               zoom={13}
               height="600px"
               onClick={(marker) => {
+                persistDetailReturnContext('map');
                 router.push(`/user/umkm/${marker.id}`);
               }}
               userLocation={userLocation || undefined}
@@ -1875,11 +1887,7 @@ export default function UserHomePage() {
               <div
                 key={umkm._id}
                 onClick={() => {
-                  // Save scroll position and filter state
-                  sessionStorage.setItem('homeScrollPosition', window.scrollY.toString());
-                  sessionStorage.setItem('filterKategori', selectedKategori);
-                  sessionStorage.setItem('filterSearch', searchQuery);
-                  sessionStorage.setItem('filterSortDistance', sortByDistance.toString());
+                  persistDetailReturnContext('cards');
                   router.push(`/user/umkm/${umkm._id}`);
                 }}
                 className="cursor-pointer"

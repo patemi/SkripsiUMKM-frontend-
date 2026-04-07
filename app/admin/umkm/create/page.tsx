@@ -217,7 +217,7 @@ export default function CreateUMKMPage() {
                       Upload Foto UMKM
                     </div>
                     <div className="mt-1 block text-xs text-gray-500 mb-4">
-                      PNG, JPG, JPEG hingga 10MB (Max 5 foto)
+                      PNG, JPG, JPEG (Max 5 foto)
                     </div>
                     <label className="cursor-pointer">
                       <input
