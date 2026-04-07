@@ -31,6 +31,13 @@ interface UMKM {
   nama_user?: string;
 }
 
+interface AISearchSuggestionResponse {
+  success: boolean;
+  enabled?: boolean;
+  didYouMean?: string | null;
+  suggestions?: string[];
+}
+
 const kategoriList = ['Semua', 'Kuliner', 'Fashion', 'Kerajinan', 'Jasa', 'Agribisnis & Pertanian', 'Toko Kelontong'];
 
 export default function UserHomePage() {
@@ -66,6 +73,9 @@ export default function UserHomePage() {
   const [detectedCoords, setDetectedCoords] = useState<{lat: number; lng: number} | null>(null);
   const [locationError, setLocationError] = useState('');
   const [viewMode, setViewMode] = useState<'cards' | 'map'>('cards'); // 'cards' or 'map'
+  const [loadingAISuggestion, setLoadingAISuggestion] = useState(false);
+  const [aiDidYouMean, setAiDidYouMean] = useState<string | null>(null);
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   
   const resultsRef = useRef<HTMLDivElement>(null);
   const myUMKMScrollRef = useRef<HTMLDivElement>(null);
@@ -328,6 +338,55 @@ export default function UserHomePage() {
     console.log('Setting filteredUMKM to:', filtered.length, 'items');
     setFilteredUMKM(filtered);
   }, [selectedKategori, searchQuery, umkmList, sortByDistance, userLocation, filterOpenNow]);
+
+  useEffect(() => {
+    const query = searchQuery.trim();
+
+    if (query.length < 2 || filteredUMKM.length > 0) {
+      setLoadingAISuggestion(false);
+      setAiDidYouMean(null);
+      setAiSuggestions([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const debounce = window.setTimeout(async () => {
+      try {
+        setLoadingAISuggestion(true);
+
+        const res = await fetch(
+          `${API_URL}/search/suggest?q=${encodeURIComponent(query)}&limit=5`,
+          { signal: controller.signal }
+        );
+
+        if (!res.ok) {
+          setAiDidYouMean(null);
+          setAiSuggestions([]);
+          return;
+        }
+
+        const data: AISearchSuggestionResponse = await res.json();
+        const didYouMean = typeof data.didYouMean === 'string' ? data.didYouMean.trim() : '';
+        const suggestions = Array.isArray(data.suggestions)
+          ? data.suggestions.filter((item) => typeof item === 'string' && item.trim())
+          : [];
+
+        setAiDidYouMean(didYouMean || null);
+        setAiSuggestions(suggestions.slice(0, 5));
+      } catch (error: any) {
+        if (error?.name !== 'AbortError') {
+          console.error('Error fetching AI search suggestions:', error);
+        }
+      } finally {
+        setLoadingAISuggestion(false);
+      }
+    }, 450);
+
+    return () => {
+      clearTimeout(debounce);
+      controller.abort();
+    };
+  }, [searchQuery, filteredUMKM.length]);
 
   const fetchUMKM = async (silent = false) => {
     console.log('🔄 Starting to fetch UMKM data...');
@@ -1730,6 +1789,37 @@ export default function UserHomePage() {
                   'Coba pilih kategori lain'
                 )}
               </p>
+              {searchQuery && (
+                <div className="mt-5 max-w-2xl mx-auto">
+                  {loadingAISuggestion ? (
+                    <p className="text-sm text-blue-600">AI sedang mencari saran kata terdekat...</p>
+                  ) : (
+                    <>
+                      {aiDidYouMean && aiDidYouMean.toLowerCase() !== searchQuery.toLowerCase() && (
+                        <button
+                          onClick={() => setSearchQuery(aiDidYouMean)}
+                          className="inline-flex items-center px-4 py-2 mb-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors font-medium"
+                        >
+                          Mungkin maksud Anda: {aiDidYouMean}
+                        </button>
+                      )}
+                      {aiSuggestions.length > 0 && (
+                        <div className="flex flex-wrap gap-2 justify-center">
+                          {aiSuggestions.map((suggestion) => (
+                            <button
+                              key={suggestion}
+                              onClick={() => setSearchQuery(suggestion)}
+                              className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors"
+                            >
+                              {suggestion}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
               {sortByDistance && userLocation && (
                 <button
                   onClick={() => {
